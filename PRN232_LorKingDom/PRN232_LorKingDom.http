@@ -1,0 +1,6 @@
+@PRN232_LorKingDom_HostAddress = http://localhost:5091
+
+GET {{PRN232_LorKingDom_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

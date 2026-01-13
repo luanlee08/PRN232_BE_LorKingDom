@@ -1,0 +1,90 @@
+############################################
+# .NET / Visual Studio
+############################################
+
+# Build results
+bin/
+obj/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+############################################
+# ASP.NET Core
+############################################
+
+# Environment-specific settings
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Production.json
+
+# User Secrets
+secrets.json
+
+############################################
+# EF Core
+############################################
+
+# Migrations backup / temp
+**/Migrations/*.cs.bak
+
+############################################
+# Logs
+############################################
+
+logs/
+*.log
+
+############################################
+# OS files
+############################################
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+############################################
+# Node / Frontend (nếu có RazorUI, React, Vite…)
+############################################
+
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.development
+.env.production
+
+############################################
+# Uploads / Runtime generated files
+############################################
+
+wwwroot/uploads/
+wwwroot/temp/
+
+############################################
+# Data protection keys (cookie sharing)
+############################################
+
+shared-keys/
+*.key
+
+############################################
+# Database / local tools
+############################################
+
+*.mdf
+*.ldf
+*.bak

@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35514.174 d17.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PRN232_LorKingDom", "PRN232_LorKingDom\PRN232_LorKingDom.csproj", "{6AAE4946-2374-4FAC-906D-B634799F8905}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DAL", "DAL\DAL.csproj", "{648DF596-6CC0-4E89-B483-11F1B31BAD02}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BLL", "BLL\BLL.csproj", "{372E913F-A934-4248-8AD4-3FB6476CDCA4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6AAE4946-2374-4FAC-906D-B634799F8905}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AAE4946-2374-4FAC-906D-B634799F8905}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AAE4946-2374-4FAC-906D-B634799F8905}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AAE4946-2374-4FAC-906D-B634799F8905}.Release|Any CPU.Build.0 = Release|Any CPU
+		{648DF596-6CC0-4E89-B483-11F1B31BAD02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{648DF596-6CC0-4E89-B483-11F1B31BAD02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{648DF596-6CC0-4E89-B483-11F1B31BAD02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{648DF596-6CC0-4E89-B483-11F1B31BAD02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{372E913F-A934-4248-8AD4-3FB6476CDCA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{372E913F-A934-4248-8AD4-3FB6476CDCA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{372E913F-A934-4248-8AD4-3FB6476CDCA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{372E913F-A934-4248-8AD4-3FB6476CDCA4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
