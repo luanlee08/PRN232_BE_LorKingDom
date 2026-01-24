@@ -13,6 +13,7 @@ namespace BLL
             services.AddScoped<ISuperCategoryService, SuperCategoryService>();
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<IBrandService, BrandService>();
+            services.AddScoped<IMaterialService, MaterialService>();
 
             // Đăng ký FluentValidation cho assembly
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
