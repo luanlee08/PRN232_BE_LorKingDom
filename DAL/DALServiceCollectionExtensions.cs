@@ -21,6 +21,8 @@ namespace DAL
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             //Brand
             services.AddScoped<IBrandRepository, BrandRepository>();
+            //Material
+            services.AddScoped<IMaterialRepository, MaterialRepository>();
 
             return services;
         }
