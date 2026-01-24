@@ -1,0 +1,23 @@
+﻿using BLL.DTOs.Categories;
+using FluentValidation;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace BLL.Validators.Categories
+{
+    public class CreateCategoryValidator : AbstractValidator<CreateCategoryRequest>
+    {
+        public CreateCategoryValidator()
+        {
+            RuleFor(x => x.CategoryName)
+                .NotEmpty()
+                .MaximumLength(255);
+
+            RuleFor(x => x.SuperCategoryId)
+                .GreaterThan(0);
+        }
+    }
+}

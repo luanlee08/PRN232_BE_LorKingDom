@@ -15,5 +15,6 @@ namespace BLL.Interfaces
 
         Task<ApiResponse<List<SuperCategoryResponse>>> GetActiveAsync();
         Task<ApiResponse<bool>> UpdateAsync(int id, UpdateSuperCategoryRequest request);
+
     }
 }

@@ -14,8 +14,14 @@ namespace DAL
             {
                 options.UseSqlServer(connectionString);
             });
+
             // SupperCategories
             services.AddScoped<ISuperCategoryRepository, SuperCategoryRepository>();
+            //Categories
+            services.AddScoped<ICategoryRepository, CategoryRepository>();
+            //Brand
+            services.AddScoped<IBrandRepository, BrandRepository>();
+
             return services;
         }
     }

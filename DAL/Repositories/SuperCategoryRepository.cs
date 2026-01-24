@@ -74,5 +74,12 @@ namespace DAL.Repositories
 
         public async Task SaveChangesAsync()
             => await _context.SaveChangesAsync();
+
+        public async Task<bool> ExistsAsync(int id)
+        {
+            return await _context.SuperCategories
+                .AnyAsync(x => x.SuperCategoryId == id && !x.IsDeleted);
+        }
+
     }
 }

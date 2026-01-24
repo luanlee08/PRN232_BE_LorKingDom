@@ -11,6 +11,8 @@ namespace BLL
         public static IServiceCollection AddBLL(this IServiceCollection services)
         {
             services.AddScoped<ISuperCategoryService, SuperCategoryService>();
+            services.AddScoped<ICategoryService, CategoryService>();
+            services.AddScoped<IBrandService, BrandService>();
 
             // Đăng ký FluentValidation cho assembly
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();

@@ -24,5 +24,7 @@ namespace DAL.Interface
         Task<bool> IsNameExistAsync(string name, int? excludeId = null);
 
         Task SaveChangesAsync();
+        Task<bool> ExistsAsync(int id);
+
     }
 }
