@@ -1,35 +1,55 @@
-
+﻿using BLL;
+using BLL.DTOs;
+using BLL.Validators.SuperCategory;
 using DAL;
-using BLL;
-using Microsoft.EntityFrameworkCore;
+using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Mvc;
 
 namespace PRN232_LorKingDom
 {
     public class Program
     {
+        [Obsolete]
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            // Register Controllers + FluentValidation
+            builder.Services.AddControllers().AddFluentValidation();
 
-            builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+            // Custom response trả về lỗi khi validation fail
+            builder.Services.Configure<ApiBehaviorOptions>(options =>
+            {
+                options.InvalidModelStateResponseFactory = context =>
+                {
+                    var error = context.ModelState
+                        .SelectMany(x => x.Value!.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .FirstOrDefault();
 
+                    return new BadRequestObjectResult(new ApiResponse<object>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = error ?? "Error",
+                        Data = null
+                    });
+                };
+            });
+
+            // Connection string
             var conn = builder.Configuration.GetConnectionString("DefaultConnection")
-           ?? throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection");
+                ?? throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection");
 
-
+            // Đăng ký DAL + BLL
             builder.Services.AddDAL(conn);
             builder.Services.AddBLL();
-
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -37,12 +57,8 @@ namespace PRN232_LorKingDom
             }
 
             app.UseHttpsRedirection();
-
             app.UseAuthorization();
-
-
             app.MapControllers();
-
             app.Run();
         }
     }

@@ -1,4 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using BLL.Interfaces;
+using BLL.Services;
+using BLL.Validators.SuperCategory;
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BLL
 {
@@ -6,7 +10,17 @@ namespace BLL
     {
         public static IServiceCollection AddBLL(this IServiceCollection services)
         {
+            services.AddScoped<ISuperCategoryService, SuperCategoryService>();
+            services.AddScoped<ICategoryService, CategoryService>();
+            services.AddScoped<IBrandService, BrandService>();
+            services.AddScoped<IMaterialService, MaterialService>();
+
+            // Đăng ký FluentValidation cho assembly
+            services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
+
             return services;
         }
+
+
     }
 }
