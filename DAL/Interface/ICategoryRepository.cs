@@ -21,6 +21,7 @@ namespace DAL.Interface
             string name,
             int superCategoryId,
             int? excludeId = null);
+        Task DisableBySuperCategoryAsync(int superCategoryId);
 
         Task<List<Category>> GetActiveAsync(int? superCategoryId);
         Task SaveChangesAsync();

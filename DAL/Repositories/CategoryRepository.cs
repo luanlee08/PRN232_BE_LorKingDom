@@ -84,5 +84,19 @@ namespace DAL.Repositories
 
         public async Task SaveChangesAsync()
             => await _context.SaveChangesAsync();
+        public async Task DisableBySuperCategoryAsync(int superCategoryId)
+        {
+            var categories = await _context.Categories
+                .Where(x =>
+                    x.SuperCategoryId == superCategoryId &&
+                    !x.IsDeleted)
+                .ToListAsync();
+
+            foreach (var category in categories)
+            {
+                category.IsDeleted = true;
+            }
+        }
+
     }
 }
