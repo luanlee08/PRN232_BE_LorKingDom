@@ -15,14 +15,15 @@ namespace DAL
                 options.UseSqlServer(connectionString);
             });
 
-            // SupperCategories
+            //Nhánh Product
             services.AddScoped<ISuperCategoryRepository, SuperCategoryRepository>();
-            //Categories
             services.AddScoped<ICategoryRepository, CategoryRepository>();
-            //Brand
             services.AddScoped<IBrandRepository, BrandRepository>();
-            //Material
             services.AddScoped<IMaterialRepository, MaterialRepository>();
+            services.AddScoped<IAgeRepository, AgeRepository>();
+            services.AddScoped<IOriginRepository, OriginRepository>();
+            services.AddScoped<IPriceRangeRepository, PriceRangeRepository>();
+            services.AddScoped<ISexRepository, SexRepository>();
 
             return services;
         }

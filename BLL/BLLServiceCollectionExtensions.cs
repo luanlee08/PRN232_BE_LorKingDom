@@ -14,6 +14,10 @@ namespace BLL
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<IBrandService, BrandService>();
             services.AddScoped<IMaterialService, MaterialService>();
+            services.AddScoped<IAgeService, AgeService>();
+            services.AddScoped<IOriginService, OriginService>();
+            services.AddScoped<IPriceRangeService, PriceRangeService>();
+            services.AddScoped<ISexService, SexService>();
 
             // Đăng ký FluentValidation cho assembly
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
