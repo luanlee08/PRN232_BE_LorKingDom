@@ -24,7 +24,8 @@ namespace DAL
             services.AddScoped<IOriginRepository, OriginRepository>();
             services.AddScoped<IPriceRangeRepository, PriceRangeRepository>();
             services.AddScoped<ISexRepository, SexRepository>();
-
+            services.AddScoped<IProductRepository, ProductRepository>();
+            services.AddScoped<IProductImageRepository, ProductImageRepository>();
             return services;
         }
     }
