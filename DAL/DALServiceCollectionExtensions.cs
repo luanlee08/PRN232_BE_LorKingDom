@@ -1,8 +1,12 @@
-﻿using DAL.Interface;
+﻿using DAL.Infrastructure.Email;
+using DAL.Infrastructure.Redis;
+using DAL.Interface;
 using DAL.Models;
 using DAL.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace DAL
 {
@@ -14,6 +18,22 @@ namespace DAL
             {
                 options.UseSqlServer(connectionString);
             });
+
+            // Redis
+            services.AddSingleton<IConnectionMultiplexer>(sp =>
+            {
+                var configuration = sp.GetRequiredService<IConfiguration>();
+                var redisConnection = configuration.GetConnectionString("Redis")
+                    ?? "localhost:6379";
+                return ConnectionMultiplexer.Connect(redisConnection);
+            });
+            services.AddScoped<IRedisService, RedisService>();
+
+            // Email
+            services.AddScoped<IEmailService, EmailService>();
+
+            // Auth
+            services.AddScoped<IAccountRepository, AccountRepository>();
 
             //Nhánh Product
             services.AddScoped<ISuperCategoryRepository, SuperCategoryRepository>();
