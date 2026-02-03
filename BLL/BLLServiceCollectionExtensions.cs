@@ -23,6 +23,8 @@ namespace BLL
             // Auth
             services.AddScoped<IAuthService, AuthService>();
 
+            services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<IProductImageService, ProductImageService>();
             // Đăng ký FluentValidation cho assembly
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
             services.AddValidatorsFromAssemblyContaining<RegisterValidator>();

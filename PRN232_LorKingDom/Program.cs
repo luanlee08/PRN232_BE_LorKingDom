@@ -59,7 +59,20 @@ namespace PRN232_LorKingDom
             // Connection string
             var conn = builder.Configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:DefaultConnection");
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy
+                        .WithOrigins(
+                                 "http://localhost:3000"
+                              )
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
 
+                });
+            });
             // Đăng ký DAL + BLL
             builder.Services.AddDAL(conn);
             builder.Services.AddBLL();
