@@ -15,10 +15,14 @@ namespace BLL.Services
     public class SuperCategoryService : ISuperCategoryService
     {
         private readonly ISuperCategoryRepository _repo;
+        private readonly ICategoryRepository _categoryRepo;
 
-        public SuperCategoryService(ISuperCategoryRepository repo)
+        public SuperCategoryService(
+            ISuperCategoryRepository repo,
+            ICategoryRepository categoryRepo)
         {
             _repo = repo;
+            _categoryRepo = categoryRepo;
         }
 
         public async Task<ApiResponse<PagedResult<SuperCategoryResponse>>> GetAsync(SuperCategoryQuery query)
@@ -105,7 +109,16 @@ namespace BLL.Services
             }
 
             entity.SuperCategoryName = request.SuperCategoryName;
+            // Nếu chuyển từ ACTIVE → INACTIVE
+            if (!entity.IsDeleted && request.IsDeleted)
+            {
+                await _categoryRepo.DisableBySuperCategoryAsync(id);
+            }
+
+            entity.SuperCategoryName = request.SuperCategoryName;
             entity.IsDeleted = request.IsDeleted;
+
+            await _repo.SaveChangesAsync();
 
             await _repo.SaveChangesAsync();
 
