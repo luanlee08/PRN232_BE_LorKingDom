@@ -46,6 +46,10 @@ namespace DAL
             services.AddScoped<ISexRepository, SexRepository>();
             services.AddScoped<IProductRepository, ProductRepository>();
             services.AddScoped<IProductImageRepository, ProductImageRepository>();
+
+            // Voucher
+            services.AddScoped<IVoucherRepository, VoucherRepository>();
+
             return services;
         }
     }
