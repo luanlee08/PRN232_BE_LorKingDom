@@ -1,0 +1,245 @@
+﻿{
+   "CodeGenerationMode": 4,
+   "ContextClassName": "AspLorKingDomContext",
+   "ContextNamespace": null,
+   "FilterSchemas": false,
+   "IncludeConnectionString": false,
+   "IrregularWords": null,
+   "MinimumProductVersion": "2.6.1301",
+   "ModelNamespace": null,
+   "OutputContextPath": null,
+   "OutputPath": "Models",
+   "PluralRules": null,
+   "PreserveCasingWithRegex": true,
+   "ProjectRootNamespace": "DAL",
+   "Schemas": null,
+   "SelectedHandlebarsLanguage": 2,
+   "SelectedToBeGenerated": 0,
+   "SingularRules": null,
+   "T4TemplatePath": null,
+   "Tables": [
+      {
+         "Name": "[dbo].[Accounts]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Addresses]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Ages]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[BlogCategories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[BlogPostCategories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[BlogPosts]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Brands]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Cart]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[CartItems]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Categories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[EmailOtps]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ExternalApiLogs]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ExternalLogins]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Materials]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[NotificationLogs]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Notifications]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[OrderDetails]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[OrderRefunds]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Orders]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[OrderStatusHistory]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Origins]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[PaymentGatewayTransactions]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[PaymentHistory]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[PriceRanges]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ProductImages]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Products]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ReviewBlogReactions]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ReviewBlogReplies]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ReviewBlogs]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ReviewProductImages]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ReviewProductReactions]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ReviewProductReplies]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ReviewProducts]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Roles]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Sexes]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ShippingProviderTransactions]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[StatusOrders]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[SuperCategories]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[SystemConfigs]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[UserNotifications]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Voucher]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[VoucherTypes]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Wallets]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[WalletTransactions]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[WebhookEvents]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Wishlists]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[Notification].[Deliveries]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[Notification].[Templates]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[System].[BackgroundJobs]",
+         "ObjectType": 0
+      }
+   ],
+   "UiHint": null,
+   "UncountableWords": null,
+   "UseAsyncStoredProcedureCalls": true,
+   "UseBoolPropertiesWithoutDefaultSql": false,
+   "UseDatabaseNames": false,
+   "UseDatabaseNamesForRoutines": true,
+   "UseDateOnlyTimeOnly": true,
+   "UseDbContextSplitting": false,
+   "UseDecimalDataAnnotationForSprocResult": true,
+   "UseFluentApiOnly": true,
+   "UseHandleBars": false,
+   "UseHierarchyId": false,
+   "UseInflector": true,
+   "UseInternalAccessModifiersForSprocsAndFunctions": false,
+   "UseLegacyPluralizer": false,
+   "UseManyToManyEntity": false,
+   "UseNoDefaultConstructor": false,
+   "UseNoNavigations": false,
+   "UseNoObjectFilter": false,
+   "UseNodaTime": false,
+   "UseNullableReferences": true,
+   "UsePrefixNavigationNaming": false,
+   "UseSchemaFolders": false,
+   "UseSchemaNamespaces": false,
+   "UseSpatial": false,
+   "UseT4": false,
+   "UseT4Split": false
+}
