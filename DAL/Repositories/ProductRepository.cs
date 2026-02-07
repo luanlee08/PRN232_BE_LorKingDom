@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DAL.Interface;
+﻿using DAL.Interface;
 using DAL.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +19,6 @@ namespace DAL.Repositories
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.ProductImages)
-                .Include(p => p.Promotion)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(keyword))
@@ -50,7 +44,6 @@ namespace DAL.Repositories
                 .Include(p => p.Origin)
                 .Include(p => p.PriceRange)
                 .Include(p => p.ProductImages)
-                .Include(p => p.Promotion)
                 .FirstOrDefaultAsync(p => p.ProductId == id);
         }
 
@@ -93,7 +86,6 @@ namespace DAL.Repositories
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.ProductImages)
-                .Include(p => p.Promotion)
                 .Where(p =>
                     p.IsDeleted == false &&
                     p.Quantity > 0 &&
@@ -139,7 +131,6 @@ namespace DAL.Repositories
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.ProductImages)
-                .Include(p => p.Promotion)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(keyword))
