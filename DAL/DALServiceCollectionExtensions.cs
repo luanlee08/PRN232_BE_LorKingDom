@@ -35,6 +35,9 @@ namespace DAL
             // Auth
             services.AddScoped<IAccountRepository, AccountRepository>();
 
+            // Address
+            services.AddScoped<IAddressRepositories, AddressRepositories>();
+
             //Nhánh Product
             services.AddScoped<ISuperCategoryRepository, SuperCategoryRepository>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();

@@ -1,5 +1,6 @@
 ﻿using BLL.Interfaces;
 using BLL.Services;
+using BLL.Validators.Address;
 using BLL.Validators.Auth;
 using BLL.Validators.SuperCategory;
 using FluentValidation;
@@ -22,6 +23,9 @@ namespace BLL
 
             // Auth
             services.AddScoped<IAuthService, AuthService>();
+
+            // Address
+            services.AddScoped<IAddressServices, AddressServices>();
 
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IProductImageService, ProductImageService>();
