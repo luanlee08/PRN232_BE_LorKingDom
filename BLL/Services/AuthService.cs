@@ -61,6 +61,7 @@ namespace BLL.Services
                 request.Email,
                 Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 request.PhoneNumber,
+                request.Provider,
                 OtpCode = otpCode
             });
 
@@ -92,19 +93,19 @@ namespace BLL.Services
             };
         }
 
-        public async Task<ApiResponse<bool>> VerifyOtpAsync(VerifyOtpRequest request)
+        public async Task<ApiResponse<LoginResponse>> VerifyOtpAsync(VerifyOtpRequest request)
         {
             var registerKey = $"register:{request.Email}";
             var registerDataJson = await _redis.GetAsync(registerKey);
 
             if (string.IsNullOrEmpty(registerDataJson))
             {
-                return new ApiResponse<bool>
+                return new ApiResponse<LoginResponse>
                 {
                     Status = 400,
                     StatusMessage = "FAILED",
                     Message = "Mã OTP đã hết hạn hoặc không tồn tại",
-                    Data = false
+                    Data = null
                 };
             }
 
@@ -112,12 +113,12 @@ namespace BLL.Services
 
             if (registerData?.OtpCode != request.OtpCode)
             {
-                return new ApiResponse<bool>
+                return new ApiResponse<LoginResponse>
                 {
                     Status = 400,
                     StatusMessage = "FAILED",
                     Message = "Mã OTP không chính xác",
-                    Data = false
+                    Data = null
                 };
             }
 
@@ -128,6 +129,7 @@ namespace BLL.Services
                 Email = registerData.Email,
                 Password = registerData.Password,
                 PhoneNumber = registerData.PhoneNumber,
+                Provider = registerData.Provider ?? "Email",
                 RoleId = 1, // Customer role
                 Status = "Active",
                 IsDeleted = false,
@@ -143,12 +145,28 @@ namespace BLL.Services
             // Gửi email chào mừng
             await _emailService.SendWelcomeEmailAsync(account.Email, account.AccountName);
 
-            return new ApiResponse<bool>
+            // Tạo JWT tokens để auto login
+            var (accessToken, refreshToken, expiresAt) = await GenerateTokensAsync(account);
+
+            return new ApiResponse<LoginResponse>
             {
                 Status = 201,
                 StatusMessage = "SUCCESS",
                 Message = "Đăng ký tài khoản thành công",
-                Data = true
+                Data = new LoginResponse
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresAt = expiresAt,
+                    User = new UserInfo
+                    {
+                        AccountId = account.AccountId,
+                        AccountName = account.AccountName,
+                        Email = account.Email,
+                        PhoneNumber = account.PhoneNumber,
+                        RoleName = account.Role?.RoleName ?? "Customer"
+                    }
+                }
             };
         }
 
@@ -399,6 +417,7 @@ namespace BLL.Services
             public string Email { get; set; } = string.Empty;
             public string Password { get; set; } = string.Empty;
             public string? PhoneNumber { get; set; }
+            public string? Provider { get; set; }
             public string OtpCode { get; set; } = string.Empty;
         }
     }
