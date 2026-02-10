@@ -5,7 +5,7 @@ namespace BLL.Interfaces
 {
     public interface IVoucherService
     {
-        Task<ApiResponse<PagedResult<VoucherResponse>>> GetVouchersAsync(VoucherSearchRequest searchDTO);
+        Task<ApiResponse<PagedResult<VoucherResponse>>> GetVouchersAsync(VoucherQuery searchDTO);
         Task<ApiResponse<VoucherResponse?>> GetVoucherByIdAsync(int voucherId);
         Task<ApiResponse<VoucherResponse?>> GetVoucherByCodeAsync(string voucherCode);
         Task<ApiResponse<VoucherResponse>> CreateVoucherAsync(CreateVoucherRequest createDTO);

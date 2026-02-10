@@ -1,5 +1,7 @@
 ﻿using BLL.Interfaces;
+using BLL.Interfaces.Moderation;
 using BLL.Services;
+using BLL.Services.Moderation;
 using BLL.Validators.Address;
 using BLL.Validators.Auth;
 using BLL.Validators.SuperCategory;
@@ -36,13 +38,24 @@ namespace BLL
             // Voucher
             services.AddScoped<IVoucherService, VoucherService>();
 
-            // Đăng ký FluentValidation cho assembly
+            // Review product         
+            services.AddScoped<IReviewProductService, ReviewProductService>();
+            services.AddScoped<IReviewReactionService, ReviewProductReactionService>();
+
+            // Cloudinary
+            services.AddSingleton<ICloudinaryService, CloudinaryService>();
+
+            // Moderate product
+            services.AddScoped<IReviewModerationOrchestrator, ReviewModerationOrchestrator>();
+            services.AddScoped<IRuleBasedFilterService, RuleBasedFilterService>();
+            services.AddScoped<IAiOmniModerationService, AiOmniModerationService>();
+            services.AddScoped<IModerationDecisionService, ModerationDecisionService>();
+
+            // Đăng ký FluentValidation cho assembly (Đk 1 cái là đủ, mấy cái còn lại ăn theo)
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
             services.AddValidatorsFromAssemblyContaining<RegisterValidator>();
 
             return services;
         }
-
-
     }
 }

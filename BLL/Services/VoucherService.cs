@@ -15,7 +15,7 @@ namespace BLL.Services
             _voucherRepository = voucherRepository;
         }
 
-        public async Task<ApiResponse<PagedResult<VoucherResponse>>> GetVouchersAsync(VoucherSearchRequest request)
+        public async Task<ApiResponse<PagedResult<VoucherResponse>>> GetVouchersAsync(VoucherQuery request)
         {
             var (items, totalCount) = await _voucherRepository.GetVouchersAsync(
                 request.VoucherCode,
