@@ -27,6 +27,9 @@ namespace BLL
             // Address
             services.AddScoped<IAddressServices, AddressServices>();
 
+            // Cart
+            services.AddScoped<ICartService, CartServices>();
+
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IProductImageService, ProductImageService>();
 

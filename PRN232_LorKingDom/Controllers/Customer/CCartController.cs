@@ -1,30 +1,33 @@
 ﻿using BLL.DTOs;
-using BLL.DTOs.Address;
+using BLL.DTOs.Cart;
 using BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-
 namespace PRN232_LorKingDom.Controllers.Customer
 {
-    [Route("api/addresses")]
+    [Route("api/cart")]
     [ApiController]
-    public class CAddressesController : ControllerBase
+    public class CCartController : ControllerBase
     {
-        private readonly IAddressServices _services;
-        int accountId = 6;
-        public CAddressesController(IAddressServices services)
+        private readonly ICartService _cartService;
+        private readonly ILogger<CCartController> _logger;
+
+        public CCartController(ICartService cartService, ILogger<CCartController> logger)
         {
-            _services = services;
+            _cartService = cartService;
+            _logger = logger;
         }
 
-        // GET: api/addresses
+        // GET: api/cart
         [Authorize]
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetCart()
         {
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            _logger.LogInformation("Account ID claim value: {AccountIdClaim}", accountIdClaim);
+
             if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
             {
                 return Unauthorized(new ApiResponse<object>
@@ -35,14 +38,14 @@ namespace PRN232_LorKingDom.Controllers.Customer
                 });
             }
 
-            var result = await _services.GetAllAsync(accountId);
+            var result = await _cartService.GetCartAsync(accountId);
             return StatusCode(result.Status, result);
         }
 
-        // GET api/addresses/{id}
+        // POST: api/cart/add
         [Authorize]
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
+        [HttpPost("add")]
+        public async Task<IActionResult> AddToCart([FromBody] AddToCartRequest request)
         {
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
@@ -55,34 +58,14 @@ namespace PRN232_LorKingDom.Controllers.Customer
                 });
             }
 
-            var result = await _services.GetByIdAsync(id, 6);
+            var result = await _cartService.AddToCartAsync(request, accountId);
             return StatusCode(result.Status, result);
         }
 
-        // POST api/addresses
-        //[Authorize]
-        [HttpPost]
-        public async Task<IActionResult> Create([FromBody] AddressRequestDTO AddressDTO)
-        {
-            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
-            {
-                return Unauthorized(new ApiResponse<object>
-                {
-                    Status = 401,
-                    StatusMessage = "UNAUTHORIZED",
-                    Message = "Không thể xác thực người dùng"
-                });
-            }
-
-            var result = await _services.CreateAsync(AddressDTO, accountId);
-            return StatusCode(result.Status, result);
-        }
-
-        // PUT api/addresses/{id}
+        // PUT: api/cart/update
         [Authorize]
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] AddressUpdateRequestDTO updateDTO)
+        [HttpPut("update")]
+        public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemRequest request)
         {
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
@@ -95,25 +78,14 @@ namespace PRN232_LorKingDom.Controllers.Customer
                 });
             }
 
-            // Ensure the ID in the URL matches the ID in the body
-            if (id != updateDTO.AddressId)
-            {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Status = 400,
-                    StatusMessage = "BAD_REQUEST",
-                    Message = "ID trong URL không khớp với ID trong dữ liệu"
-                });
-            }
-
-            var result = await _services.UpdateAsync(updateDTO, accountId);
+            var result = await _cartService.UpdateCartItemAsync(request, accountId);
             return StatusCode(result.Status, result);
         }
 
-        // DELETE api/addresses/{id}
+        // PATCH: api/cart/increment/{cartItemId}
         [Authorize]
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        [HttpPatch("increment/{cartItemId}")]
+        public async Task<IActionResult> IncrementCartItem(int cartItemId)
         {
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
@@ -126,7 +98,67 @@ namespace PRN232_LorKingDom.Controllers.Customer
                 });
             }
 
-            var result = await _services.DeleteAsync(id, accountId);
+            var result = await _cartService.IncrementCartItemAsync(cartItemId, accountId);
+            return StatusCode(result.Status, result);
+        }
+
+        // PATCH: api/cart/decrement/{cartItemId}
+        [Authorize]
+        [HttpPatch("decrement/{cartItemId}")]
+        public async Task<IActionResult> DecrementCartItem(int cartItemId)
+        {
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Status = 401,
+                    StatusMessage = "UNAUTHORIZED",
+                    Message = "Không thể xác thực người dùng"
+                });
+            }
+
+            var result = await _cartService.DecrementCartItemAsync(cartItemId, accountId);
+            return StatusCode(result.Status, result);
+        }
+
+        // DELETE: api/cart/remove/{cartItemId}
+        [Authorize]
+        [HttpDelete("remove/{cartItemId}")]
+        public async Task<IActionResult> RemoveCartItem(int cartItemId)
+        {
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Status = 401,
+                    StatusMessage = "UNAUTHORIZED",
+                    Message = "Không thể xác thực người dùng"
+                });
+            }
+
+            var result = await _cartService.RemoveCartItemAsync(cartItemId, accountId);
+            return StatusCode(result.Status, result);
+        }
+
+        // DELETE: api/cart/clear
+        [Authorize]
+        [HttpDelete("clear")]
+        public async Task<IActionResult> ClearCart()
+        {
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Status = 401,
+                    StatusMessage = "UNAUTHORIZED",
+                    Message = "Không thể xác thực người dùng"
+                });
+            }
+
+            var result = await _cartService.ClearCartAsync(accountId);
             return StatusCode(result.Status, result);
         }
     }

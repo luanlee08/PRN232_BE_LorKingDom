@@ -1,15 +1,15 @@
-﻿using BLL.DTOs.Cart;
+using BLL.DTOs.Cart;
 using FluentValidation;
 
 namespace BLL.Validators.Cart
 {
-    public class AddToCartRequestValidator : AbstractValidator<AddToCartRequest>
+    public class UpdateCartItemRequestValidator : AbstractValidator<UpdateCartItemRequest>
     {
-        public AddToCartRequestValidator()
+        public UpdateCartItemRequestValidator()
         {
-            RuleFor(x => x.ProductId)
+            RuleFor(x => x.CartItemId)
                 .GreaterThan(0)
-                .WithMessage("ProductId phải lớn hơn 0");
+                .WithMessage("CartItemId phải lớn hơn 0");
 
             RuleFor(x => x.Quantity)
                 .GreaterThan(0)
