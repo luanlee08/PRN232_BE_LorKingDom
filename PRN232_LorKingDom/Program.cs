@@ -1,6 +1,6 @@
 ﻿using BLL;
 using BLL.DTOs;
-using BLL.Validators.SuperCategory;
+using CloudinaryDotNet;
 using DAL;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -73,6 +73,30 @@ namespace PRN232_LorKingDom
 
                 });
             });
+            builder.Services.AddHttpClient();
+
+            builder.Services.AddSingleton<Cloudinary>(sp =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+
+                var cloudName = config["Cloudinary:CloudName"];
+                var apiKey = config["Cloudinary:ApiKey"];
+                var apiSecret = config["Cloudinary:ApiSecret"];
+
+                if (string.IsNullOrEmpty(cloudName) ||
+                    string.IsNullOrEmpty(apiKey) ||
+                    string.IsNullOrEmpty(apiSecret))
+                {
+                    throw new InvalidOperationException("Cloudinary config missing");
+                }
+
+                var account = new Account(cloudName, apiKey, apiSecret);
+                var cloudinary = new Cloudinary(account);
+                cloudinary.Api.Secure = true;
+
+                return cloudinary;
+            });
+
             // Đăng ký DAL + BLL
             builder.Services.AddDAL(conn);
             builder.Services.AddBLL();
