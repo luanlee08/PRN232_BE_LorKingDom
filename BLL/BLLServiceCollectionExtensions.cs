@@ -2,6 +2,7 @@
 using BLL.Interfaces.Moderation;
 using BLL.Services;
 using BLL.Services.Moderation;
+using BLL.Validators.Address;
 using BLL.Validators.Auth;
 using BLL.Validators.SuperCategory;
 using FluentValidation;
@@ -24,6 +25,12 @@ namespace BLL
 
             // Auth
             services.AddScoped<IAuthService, AuthService>();
+
+            // Address
+            services.AddScoped<IAddressServices, AddressServices>();
+
+            // Cart
+            services.AddScoped<ICartService, CartServices>();
 
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IProductImageService, ProductImageService>();
@@ -50,7 +57,5 @@ namespace BLL
 
             return services;
         }
-
-
     }
 }

@@ -173,8 +173,9 @@ namespace PRN232_LorKingDom
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
+           
             app.UseHttpsRedirection();
+            app.UseStaticFiles();
             app.UseCors("AllowFrontend");
             app.UseMiddleware<JwtMiddleware>();
             app.UseAuthentication();

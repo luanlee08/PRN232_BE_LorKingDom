@@ -246,16 +246,16 @@ namespace BLL.Services
                  );
 
 
-                // 👉 Upload file mới
-                if (request.NewMainImage != null || request.NewSecondaryImages?.Any() == true)
-                {
-                    await _imageSvc.AddImagesAsync(
-                        entity.ProductId,
-                        entity.Sku,
-                        request.NewMainImage ?? null!,
-                        request.NewSecondaryImages ?? new List<IFormFile>()
-                    );
-                }
+                //// 👉 Upload file mới
+                //if (request.NewMainImage != null || request.NewSecondaryImages?.Any() == true)
+                //{
+                //    await _imageSvc.AddImagesAsync(
+                //        entity.ProductId,
+                //        entity.Sku,
+                //        request.NewMainImage ?? null!,
+                //        request.NewSecondaryImages ?? new List<IFormFile>()
+                //    );
+                //}
             }
 
             return new ApiResponse<bool>
