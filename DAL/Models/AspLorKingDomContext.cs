@@ -47,10 +47,6 @@ public partial class AspLorKingDomContext : DbContext
 
     public virtual DbSet<Material> Materials { get; set; }
 
-    public virtual DbSet<Notification> Notifications { get; set; }
-
-    public virtual DbSet<NotificationLog> NotificationLogs { get; set; }
-
     public virtual DbSet<Order> Orders { get; set; }
 
     public virtual DbSet<OrderDetail> OrderDetails { get; set; }
@@ -100,8 +96,6 @@ public partial class AspLorKingDomContext : DbContext
     public virtual DbSet<SystemConfig> SystemConfigs { get; set; }
 
     public virtual DbSet<Template> Templates { get; set; }
-
-    public virtual DbSet<UserNotification> UserNotifications { get; set; }
 
     public virtual DbSet<Voucher> Vouchers { get; set; }
 
@@ -429,59 +423,6 @@ public partial class AspLorKingDomContext : DbContext
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
             entity.Property(e => e.MaterialName).HasMaxLength(255);
-        });
-
-        modelBuilder.Entity<Notification>(entity =>
-        {
-            entity.HasKey(e => e.NotificationId).HasName("PK__Notifica__20CF2E3274E57B42");
-
-            entity.Property(e => e.NotificationId).HasColumnName("NotificationID");
-            entity.Property(e => e.ConditionJson).HasColumnName("ConditionJSON");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.ExpireAt).HasColumnType("datetime");
-            entity.Property(e => e.ScheduledAt).HasColumnType("datetime");
-            entity.Property(e => e.SentAt).HasColumnType("datetime");
-            entity.Property(e => e.TargetRoleId).HasColumnName("TargetRoleID");
-            entity.Property(e => e.TargetType).HasMaxLength(50);
-            entity.Property(e => e.TargetUserId).HasColumnName("TargetUserID");
-            entity.Property(e => e.Title).HasMaxLength(200);
-            entity.Property(e => e.Type)
-                .HasMaxLength(50)
-                .HasDefaultValue("General");
-
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.NotificationCreatedByNavigations)
-                .HasForeignKey(d => d.CreatedBy)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Notifications_CreatedBy");
-
-            entity.HasOne(d => d.TargetRole).WithMany(p => p.Notifications)
-                .HasForeignKey(d => d.TargetRoleId)
-                .HasConstraintName("FK_Notifications_TargetRole");
-
-            entity.HasOne(d => d.TargetUser).WithMany(p => p.NotificationTargetUsers)
-                .HasForeignKey(d => d.TargetUserId)
-                .HasConstraintName("FK_Notifications_TargetUser");
-        });
-
-        modelBuilder.Entity<NotificationLog>(entity =>
-        {
-            entity.HasKey(e => e.LogId).HasName("PK__Notifica__5E5499A85D71A960");
-
-            entity.Property(e => e.LogId).HasColumnName("LogID");
-            entity.Property(e => e.NotificationId).HasColumnName("NotificationID");
-            entity.Property(e => e.Result)
-                .HasMaxLength(50)
-                .HasDefaultValue("Success");
-            entity.Property(e => e.SentAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.SentTo).HasMaxLength(255);
-
-            entity.HasOne(d => d.Notification).WithMany(p => p.NotificationLogs)
-                .HasForeignKey(d => d.NotificationId)
-                .HasConstraintName("FK_NotificationLogs_Notifications");
         });
 
         modelBuilder.Entity<Order>(entity =>
@@ -1136,29 +1077,6 @@ public partial class AspLorKingDomContext : DbContext
                 .IsUnicode(false);
             entity.Property(e => e.TitleTemplate).HasMaxLength(255);
             entity.Property(e => e.UpdatedAt).HasPrecision(0);
-        });
-
-        modelBuilder.Entity<UserNotification>(entity =>
-        {
-            entity.HasKey(e => e.UserNotificationId).HasName("PK__UserNoti__EB2985C90CF6B70D");
-
-            entity.HasIndex(e => new { e.UserId, e.IsRead }, "IX_UserNotifications_UserID_IsRead");
-
-            entity.Property(e => e.UserNotificationId).HasColumnName("UserNotificationID");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.NotificationId).HasColumnName("NotificationID");
-            entity.Property(e => e.ReadAt).HasColumnType("datetime");
-            entity.Property(e => e.UserId).HasColumnName("UserID");
-
-            entity.HasOne(d => d.Notification).WithMany(p => p.UserNotifications)
-                .HasForeignKey(d => d.NotificationId)
-                .HasConstraintName("FK_UserNotifications_Notifications");
-
-            entity.HasOne(d => d.User).WithMany(p => p.UserNotifications)
-                .HasForeignKey(d => d.UserId)
-                .HasConstraintName("FK_UserNotifications_Users");
         });
 
         modelBuilder.Entity<Voucher>(entity =>

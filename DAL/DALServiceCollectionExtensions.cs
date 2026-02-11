@@ -65,6 +65,12 @@ namespace DAL
             services.AddScoped<IReviewProductReactionRepository, ReviewProductReactionRepository>();
             services.AddScoped<IReviewModerationLogRepository, ReviewModerationLogRepository>();
 
+            // Notification
+            services.AddScoped<INotificationRepository, NotificationRepository>();
+
+            // Template
+            services.AddScoped<ITemplateRepository, TemplateRepository>();
+
             return services;
         }
     }

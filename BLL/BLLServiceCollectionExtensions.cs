@@ -51,6 +51,12 @@ namespace BLL
             services.AddScoped<IAiOmniModerationService, AiOmniModerationService>();
             services.AddScoped<IModerationDecisionService, ModerationDecisionService>();
 
+            // Notification
+            services.AddScoped<INotificationService, NotificationService>();
+
+            // Template
+            services.AddScoped<ITemplateService, TemplateService>();
+
             // Đăng ký FluentValidation cho assembly (Đk 1 cái là đủ, mấy cái còn lại ăn theo)
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
             services.AddValidatorsFromAssemblyContaining<RegisterValidator>();
