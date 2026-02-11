@@ -43,10 +43,6 @@ public partial class Account
 
     public virtual ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
 
-    public virtual ICollection<Notification> NotificationCreatedByNavigations { get; set; } = new List<Notification>();
-
-    public virtual ICollection<Notification> NotificationTargetUsers { get; set; } = new List<Notification>();
-
     public virtual ICollection<OrderRefund> OrderRefundAccounts { get; set; } = new List<OrderRefund>();
 
     public virtual ICollection<OrderRefund> OrderRefundApprovedByNavigations { get; set; } = new List<OrderRefund>();
@@ -72,8 +68,6 @@ public partial class Account
     public virtual ICollection<ReviewProduct> ReviewProducts { get; set; } = new List<ReviewProduct>();
 
     public virtual Role? Role { get; set; }
-
-    public virtual ICollection<UserNotification> UserNotifications { get; set; } = new List<UserNotification>();
 
     public virtual ICollection<Voucher> Vouchers { get; set; } = new List<Voucher>();
 
