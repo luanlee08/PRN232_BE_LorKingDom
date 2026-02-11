@@ -135,6 +135,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[ReviewModerationLogs]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[ReviewProductImages]",
          "ObjectType": 0
       },

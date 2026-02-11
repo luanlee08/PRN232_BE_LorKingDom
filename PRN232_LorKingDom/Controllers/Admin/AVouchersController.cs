@@ -15,21 +15,15 @@ namespace PRN232_LorKingDom.Controllers.Admin
             _voucherService = voucherService;
         }
 
-        /// <summary>
-        /// Get list of vouchers with pagination and filtering
-        /// </summary>
         [HttpGet]
-        public async Task<ActionResult> GetVouchers([FromQuery] VoucherSearchRequest request)
+        public async Task<IActionResult> GetVouchers([FromQuery] VoucherQuery request)
         {
             var result = await _voucherService.GetVouchersAsync(request);
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Create a new voucher
-        /// </summary>
         [HttpPost]
-        public async Task<ActionResult> CreateVoucher([FromBody] CreateVoucherRequest request)
+        public async Task<IActionResult> CreateVoucher([FromBody] CreateVoucherRequest request)
         {
 
             var result = await _voucherService.CreateVoucherAsync(request);
@@ -37,13 +31,10 @@ namespace PRN232_LorKingDom.Controllers.Admin
 
         }
 
-        /// <summary>
-        /// Update an existing voucher
-        /// </summary>
         [HttpPut("{id}")]
-        public async Task<ActionResult<VoucherResponse>> UpdateVoucher(int id, [FromBody] UpdateVoucherRequest updateDTO)
+        public async Task<IActionResult> UpdateVoucher(int id, [FromBody] UpdateVoucherRequest request)
         {
-            var result = await _voucherService.UpdateVoucherAsync(id, updateDTO);
+            var result = await _voucherService.UpdateVoucherAsync(id, request);
             return StatusCode(result.Status, result);
         }
     }

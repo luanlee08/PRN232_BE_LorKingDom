@@ -1,8 +1,11 @@
 ﻿using BLL;
 using BLL.DTOs;
-using BLL.Validators.SuperCategory;
+using BLL.Worker;
+using CloudinaryDotNet;
 using DAL;
 using FluentValidation.AspNetCore;
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -73,9 +76,49 @@ namespace PRN232_LorKingDom
 
                 });
             });
+            builder.Services.AddHttpClient();
+
+            builder.Services.AddSingleton<Cloudinary>(sp =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+
+                var cloudName = config["Cloudinary:CloudName"];
+                var apiKey = config["Cloudinary:ApiKey"];
+                var apiSecret = config["Cloudinary:ApiSecret"];
+
+                if (string.IsNullOrEmpty(cloudName) ||
+                    string.IsNullOrEmpty(apiKey) ||
+                    string.IsNullOrEmpty(apiSecret))
+                {
+                    throw new InvalidOperationException("Cloudinary config missing");
+                }
+
+                var account = new Account(cloudName, apiKey, apiSecret);
+                var cloudinary = new Cloudinary(account);
+                cloudinary.Api.Secure = true;
+
+                return cloudinary;
+            });
+
             // Đăng ký DAL + BLL
             builder.Services.AddDAL(conn);
             builder.Services.AddBLL();
+
+            // Hangfire Configuration
+            builder.Services.AddHangfire(configuration => configuration
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(conn, new SqlServerStorageOptions
+                {
+                    CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                    SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                    QueuePollInterval = TimeSpan.Zero,
+                    UseRecommendedIsolationLevel = true,
+                    DisableGlobalLocks = true
+                }));
+
+            builder.Services.AddHangfireServer();
 
             // JWT Authentication
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -149,7 +192,23 @@ namespace PRN232_LorKingDom
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-           
+
+            // Hangfire Dashboard
+            app.UseHangfireDashboard("/hangfire", new DashboardOptions
+            {
+                Authorization = new[] { new HangfireDashboardAuthorizationFilter() }
+            });
+
+            // Configure recurring jobs
+            using (var scope = app.Services.CreateScope())
+            {
+                var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+                recurringJobManager.AddOrUpdate<NotificationWorker>(
+                    "process-scheduled-notifications",
+                    worker => worker.ProcessScheduledNotificationsJob(),
+                    Cron.Minutely);
+            }
+
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCors("AllowFrontend");

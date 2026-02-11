@@ -1,6 +1,6 @@
 ﻿namespace BLL.DTOs.Vouchers
 {
-    public class VoucherSearchRequest
+    public class VoucherQuery
     {
         public string? VoucherCode { get; set; }
         public int? VoucherTypeId { get; set; }

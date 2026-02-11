@@ -1,4 +1,5 @@
-﻿using DAL.Infrastructure.Email;
+﻿using DAL.Infrastructure;
+using DAL.Infrastructure.Email;
 using DAL.Infrastructure.Redis;
 using DAL.Interface;
 using DAL.Models;
@@ -32,6 +33,8 @@ namespace DAL
             // Email
             services.AddScoped<IEmailService, EmailService>();
 
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+
             // Auth
             services.AddScoped<IAccountRepository, AccountRepository>();
 
@@ -55,6 +58,18 @@ namespace DAL
 
             // Voucher
             services.AddScoped<IVoucherRepository, VoucherRepository>();
+
+            // Review product
+            services.AddScoped<IReviewProductRepository, ReviewProductRepository>();
+            services.AddScoped<IReviewProductImageRepository, ReviewProductImageRepository>();
+            services.AddScoped<IReviewProductReactionRepository, ReviewProductReactionRepository>();
+            services.AddScoped<IReviewModerationLogRepository, ReviewModerationLogRepository>();
+
+            // Notification
+            services.AddScoped<INotificationRepository, NotificationRepository>();
+
+            // Template
+            services.AddScoped<ITemplateRepository, TemplateRepository>();
 
             return services;
         }

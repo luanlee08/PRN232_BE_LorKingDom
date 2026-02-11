@@ -23,6 +23,16 @@ public partial class ReviewProduct
 
     public bool IsDeleted { get; set; }
 
+    public string Status { get; set; } = null!;
+
+    public string Visibility { get; set; } = null!;
+
+    public decimal? ModerationScore { get; set; }
+
+    public string? ModerationDetail { get; set; }
+
+    public int EditCount { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
@@ -32,6 +42,8 @@ public partial class ReviewProduct
     public virtual OrderDetail? OrderDetail { get; set; }
 
     public virtual Product Product { get; set; } = null!;
+
+    public virtual ICollection<ReviewModerationLog> ReviewModerationLogs { get; set; } = new List<ReviewModerationLog>();
 
     public virtual ICollection<ReviewProductImage> ReviewProductImages { get; set; } = new List<ReviewProductImage>();
 
