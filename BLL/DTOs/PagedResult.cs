@@ -13,7 +13,9 @@ namespace BLL.DTOs
         public int Page { get; set; }
         public int PageSize { get; set; }
 
-        public int TotalPages => (TotalCount + PageSize - 1) / PageSize;
+        public int TotalPages =>
+     PageSize <= 0 ? 1 : (TotalCount + PageSize - 1) / PageSize;
+
         public bool HasPreviousPage => Page > 1;
         public bool HasNextPage => Page < TotalPages;
     }
