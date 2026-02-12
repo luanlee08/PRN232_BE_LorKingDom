@@ -25,7 +25,8 @@ namespace DAL.Repositories
             int pageSize)
         {
             var query = _context.SuperCategories
-                .Where(x => !x.IsDeleted);
+     .AsQueryable();
+
 
             if (!string.IsNullOrWhiteSpace(keyword))
             {
