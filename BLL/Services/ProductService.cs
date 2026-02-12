@@ -15,15 +15,18 @@ namespace BLL.Services
 {
     public class ProductService : IProductService
     {
+        private readonly IPriceRangeRepository _priceRangeRepo;
         private readonly IProductRepository _repo;
         private readonly IProductImageService _imageSvc;
 
         public ProductService(
             IProductRepository repo,
-            IProductImageService imageSvc)
+            IProductImageService imageSvc,
+            IPriceRangeRepository priceRangeRepo)
         {
             _repo = repo;
             _imageSvc = imageSvc;
+            _priceRangeRepo = priceRangeRepo;
         }
 
         /* ========================== GET ADMIN PAGED ========================== */
@@ -58,8 +61,7 @@ namespace BLL.Services
             var (items, total) = await _repo.QueryStorefrontPagedAsync(
                 query.Keyword,
                 query.Page,
-                query.PageSize,
-                query.PriceRangeId
+                query.PageSize
             );
 
             return new ApiResponse<PagedResult<ProductDto>>
@@ -119,7 +121,22 @@ namespace BLL.Services
             var status = request.ProductStatus == "Discontinued"
                 ? "Discontinued"
                 : (request.StockQuantity > 0 ? "Available" : "OutOfStock");
+            var priceRanges = await _priceRangeRepo.GetAllAsync();
 
+            var matchedRange = priceRanges
+                .FirstOrDefault(pr =>
+                    request.Price >= pr.PriceRangeMin &&
+                    request.Price <= pr.PriceRangeMax
+                );
+
+            if (matchedRange == null)
+            {
+                return new ApiResponse<int>
+                {
+                    Status = 400,
+                    Message = "Giá không thuộc khoảng giá nào"
+                };
+            }
             var entity = new Product
             {
                 Sku = GenerateSku(),
@@ -128,7 +145,7 @@ namespace BLL.Services
                 MaterialId = request.MaterialId,
                 AgeId = request.AgeId,
                 SexId = request.SexId,
-                PriceRangeId = request.PriceRangeId,
+                PriceRangeId = matchedRange.PriceRangeId,
                 BrandId = request.BrandId,
                 OriginId = request.OriginId,
                 Price = request.Price,
@@ -138,6 +155,7 @@ namespace BLL.Services
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
             };
+            Console.WriteLine($"AgeId received: {request.AgeId}");
 
             await _repo.AddAsync(entity);
             if (request.MainImage == null)
@@ -165,6 +183,8 @@ namespace BLL.Services
                 request.MainImage,
                 request.SecondaryImages ?? new List<IFormFile>()
             );
+
+         
 
 
             return new ApiResponse<int>
@@ -203,13 +223,31 @@ namespace BLL.Services
                     Data = false
                 };
             }
+            var priceRanges = await _priceRangeRepo.GetAllAsync();
+
+            var matchedRange = priceRanges
+                .FirstOrDefault(pr =>
+                    request.Price >= pr.PriceRangeMin &&
+                    request.Price <= pr.PriceRangeMax
+                );
+
+            if (matchedRange == null)
+            {
+                return new ApiResponse<bool>
+                {
+                    Status = 400,
+                    Message = "Giá không thuộc khoảng giá nào",
+                    Data = false
+                };
+            }
+
 
             entity.ProductName = request.ProductName.Trim();
             entity.CategoryId = request.CategoryId;
             entity.MaterialId = request.MaterialId;
             entity.AgeId = request.AgeId;
             entity.SexId = request.SexId;
-            entity.PriceRangeId = request.PriceRangeId;
+            entity.PriceRangeId = matchedRange.PriceRangeId;
             entity.BrandId = request.BrandId;
             entity.OriginId = request.OriginId;
             entity.Price = request.Price;
