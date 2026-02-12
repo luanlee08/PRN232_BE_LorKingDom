@@ -7,6 +7,8 @@ using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 
 namespace BLL.Services
 {
@@ -317,6 +319,51 @@ namespace BLL.Services
                 }
 
                 throw; // Hangfire will retry
+            }
+        }
+
+        #endregion
+
+        #region Review Moderation Notifications
+
+        /// <summary>
+        /// Send notification to user when their review is rejected
+        /// </summary>
+        public async Task SendReviewRejectionNotificationAsync(int reviewId, int accountId, string productName, string reason)
+        {
+            try
+            {
+                _logger.LogInformation($"Sending review rejection notification for ReviewId: {reviewId}, AccountId: {accountId}");
+
+                // Prepare notification content
+                var parameters = new Dictionary<string, string>
+                {
+                    { "productName", productName },
+                    { "reason", reason }
+                };
+
+                var request = new SendNotificationRequest
+                {
+                    TemplateCode = "REVIEW_REJECTED",
+                    TargetType = "User",
+                    TargetUserId = accountId,
+                    Parameters = parameters,
+                    Payload = JsonSerializer.Serialize(new { reviewId, productName, reason }, new JsonSerializerOptions
+                    {
+                        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+                        WriteIndented = false
+                    })
+                };
+
+                // Send immediately (not scheduled)
+                await CreateDeliveriesForTargets(request, accountId, null);
+
+                _logger.LogInformation($"Successfully sent review rejection notification for ReviewId: {reviewId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to send review rejection notification for ReviewId: {reviewId}");
+                // Don't throw - notification failure shouldn't break the moderation process
             }
         }
 
