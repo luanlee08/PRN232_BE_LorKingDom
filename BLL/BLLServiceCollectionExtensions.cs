@@ -46,10 +46,9 @@ namespace BLL
             services.AddSingleton<ICloudinaryService, CloudinaryService>();
 
             // Moderate product
-            services.AddScoped<IReviewModerationOrchestrator, ReviewModerationOrchestrator>();
-            services.AddScoped<IRuleBasedFilterService, RuleBasedFilterService>();
-            services.AddScoped<IAiOmniModerationService, AiOmniModerationService>();
-            services.AddScoped<IModerationDecisionService, ModerationDecisionService>();
+            services.AddScoped<IReviewModerationService, ReviewModerationService>();
+            services.AddScoped<IModerationLayer1Service, ModerationLayer1Service>();
+            services.AddScoped<IModerationLayer2Service, ModerationLayer2Service>();
 
             // Notification
             services.AddScoped<INotificationService, NotificationService>();
