@@ -34,9 +34,60 @@ namespace DAL.Repositories
                 .AnyAsync(a => a.Email == email);
         }
 
+        public async Task<bool> IsEmailExistAsync(string email, int? excludeId)
+        {
+            var query = _context.Accounts
+                .Where(x => x.Email == email);
+
+            if (excludeId.HasValue)
+                query = query.Where(x => x.AccountId != excludeId.Value);
+
+            return await query.AnyAsync();
+        }
+
         public async Task AddAsync(Account account)
         {
             await _context.Accounts.AddAsync(account);
+        }
+
+        public async Task<(List<Account>, int)> GetAsync(
+            string? keyword,
+            int? roleId,
+            string? status,
+            int page,
+            int pageSize)
+        {
+            var query = _context.Accounts
+                .Include(a => a.Role)
+                .Where(x => !x.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(x =>
+                    x.AccountName.Contains(keyword) ||
+                    x.Email.Contains(keyword) ||
+                    (x.PhoneNumber != null && x.PhoneNumber.Contains(keyword)));
+            }
+
+            if (roleId.HasValue)
+            {
+                query = query.Where(x => x.RoleId == roleId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(x => x.Status == status);
+            }
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, total);
         }
 
         public async Task SaveChangesAsync()

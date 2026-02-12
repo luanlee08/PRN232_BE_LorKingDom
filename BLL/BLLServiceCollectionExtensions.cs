@@ -26,6 +26,9 @@ namespace BLL
             // Auth
             services.AddScoped<IAuthService, AuthService>();
 
+            // Account
+            services.AddScoped<IAccountService, AccountService>();
+
             // Address
             services.AddScoped<IAddressServices, AddressServices>();
 
