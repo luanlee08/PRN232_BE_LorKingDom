@@ -72,6 +72,9 @@ namespace DAL
             // Template
             services.AddScoped<ITemplateRepository, TemplateRepository>();
 
+            // Order
+            services.AddScoped<IOrderRepository, OrderRepository>();
+
             return services;
         }
     }

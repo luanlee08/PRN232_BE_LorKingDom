@@ -17,9 +17,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             _reviewProductService = reviewProductService;
         }
 
-        /// <summary>
         /// Admin xem danh sách tất cả review với filter nâng cao
-        /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAdminReviews([FromQuery] AdminReviewListQuery query)
         {
@@ -27,10 +25,8 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
         /// Admin cập nhật trạng thái review (Approve/Reject/Pending)
         /// Hoặc thay đổi visibility (Public/AuthorOnly)
-        /// </summary>
         [HttpPut("{reviewId}")]
         public async Task<IActionResult> UpdateReview(int reviewId, [FromBody] AdminUpdateReviewRequest request)
         {
@@ -38,9 +34,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
         /// Admin xóa mềm review
-        /// </summary>
         [HttpDelete("{reviewId}")]
         public async Task<IActionResult> SoftDeleteReview(int reviewId)
         {
@@ -48,9 +42,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
         /// Admin trả lời review của customer
-        /// </summary>
         [HttpPost("replies")]
         public async Task<IActionResult> AddReply([FromBody] AddReplyRequest request)
         {

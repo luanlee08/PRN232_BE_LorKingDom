@@ -59,6 +59,9 @@ namespace BLL
             // Template
             services.AddScoped<ITemplateService, TemplateService>();
 
+            // Order
+            services.AddScoped<IOrderService, OrderService>();
+
             // Đăng ký FluentValidation cho assembly (Đk 1 cái là đủ, mấy cái còn lại ăn theo)
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
             services.AddValidatorsFromAssemblyContaining<RegisterValidator>();

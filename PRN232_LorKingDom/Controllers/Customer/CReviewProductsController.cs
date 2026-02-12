@@ -30,9 +30,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Lấy thống kê review của sản phẩm (Average Rating, Total Reviews, Rating Distribution)
-        /// </summary>
+        /// Lấy thống kê review của sản phẩm 
         [HttpGet("summary/{productId}")]
         public async Task<IActionResult> GetReviewSummary(int productId)
         {
@@ -40,9 +38,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
         /// Lấy lịch sử review của customer trên cùng sản phẩm (bao gồm review cũ)
-        /// </summary>
         [HttpGet("history")]
         public async Task<IActionResult> GetMyReviewHistory([FromQuery] int productId)
         {
