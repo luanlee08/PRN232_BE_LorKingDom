@@ -10,5 +10,12 @@ namespace DAL.Interface
         Task<bool> IsEmailExistAsync(string email);
         Task AddAsync(Account account);
         Task SaveChangesAsync();
+        Task<(List<Account> Items, int TotalCount)> GetAsync(
+            string? keyword,
+            int? roleId,
+            string? status,
+            int page,
+            int pageSize);
+        Task<bool> IsEmailExistAsync(string email, int? excludeId);
     }
 }
