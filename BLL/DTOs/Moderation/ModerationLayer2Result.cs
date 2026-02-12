@@ -1,6 +1,6 @@
 ﻿namespace BLL.DTOs.Moderation
 {
-    public class AiModerationResponse
+    public class ModerationLayer2Result
     {
         // Direct categories from OpenAI
         public bool IsFlagged { get; set; }
