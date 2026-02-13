@@ -28,6 +28,7 @@ namespace BLL
 
             // Account
             services.AddScoped<IAccountService, AccountService>();
+            services.AddScoped<ICustomerAccountService, CustomerAccountService>();
 
             // Address
             services.AddScoped<IAddressServices, AddressServices>();
