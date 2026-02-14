@@ -66,7 +66,7 @@ namespace BLL.Services
             var entity = new SuperCategory
             {
                 SuperCategoryName = request.SuperCategoryName,
-                IsDeleted = false,
+                IsDeleted = request.IsDeleted,
                 CreatedAt = DateTime.UtcNow
             };
 

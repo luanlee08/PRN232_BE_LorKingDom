@@ -26,5 +26,8 @@ namespace BLL.Interfaces
 
         // Background job methods (called by Hangfire)
         Task ProcessScheduledNotificationJobAsync(SendNotificationRequest request, int createdBy, int? jobId);
+
+        // Review moderation notifications
+        Task SendReviewRejectionNotificationAsync(int reviewId, int accountId, string productName, string reason);
     }
 }

@@ -16,7 +16,11 @@ namespace DAL.Interface
             int productId,
             int page,
             int pageSize,
-            string? status = "Approved");
+            string? status = "Approved",
+            int? rating = null,
+            int? requestingAccountId = null);
+        Task<List<ReviewProduct>> GetMyReviewHistoryAsync(int productId, int accountId);
+        Task<(decimal AverageRating, int TotalReviews, Dictionary<int, int> RatingDistribution)> GetReviewSummaryAsync(int productId);
 
         // === UPDATE ===
         Task UpdateAsync(ReviewProduct review);
@@ -26,5 +30,17 @@ namespace DAL.Interface
         // === CHECK ===
         Task<bool> HasReviewedAsync(int accountId, int orderDetailId);
         Task<bool> CanEditAsync(int reviewId, int accountId);
+
+        // === ADMIN ===
+        Task<(List<ReviewProduct> Items, int Total)> GetAdminPagedAsync(
+            int? productId,
+            string? status,
+            int? rating,
+            string? searchKeyword,
+            DateTime? fromDate,
+            DateTime? toDate,
+            int page,
+            int pageSize);
+        Task SoftDeleteAsync(int reviewId);
     }
 }

@@ -44,5 +44,27 @@ namespace DAL.Interface
         // Webhook
         Task<WebhookEvent> AddWebhookEventAsync(WebhookEvent webhookEvent);
         Task UpdateWebhookEventAsync(WebhookEvent webhookEvent);
+
+        // Admin Order Management (from remote)
+        Task<(List<Order> Items, int TotalCount)> GetPagedAsync(
+            string? keyword,
+            int? statusId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            int page,
+            int pageSize,
+            string sortBy,
+            bool sortDesc);
+
+        Task UpdateStatusAsync(int orderId, int statusId);
+
+        Task<List<Order>> GetOrdersForExportAsync(
+            string? keyword,
+            int? statusId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            string sortBy,
+            bool sortDesc,
+            int maxRecords = 5000);
     }
 }

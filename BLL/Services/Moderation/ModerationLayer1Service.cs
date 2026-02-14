@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace BLL.Services.Moderation
 {
-    public class RuleBasedFilterService : IRuleBasedFilterService
+    public class ModerationLayer1Service : IModerationLayer1Service
     {
         // === TỪ CẤM TIẾNG VIỆT & TIẾNG ANH ===
         private readonly HashSet<string> _bannedWords = new(StringComparer.OrdinalIgnoreCase)
@@ -48,18 +48,18 @@ namespace BLL.Services.Moderation
             new Regex(@"\b[A-Z]{10,}\b", RegexOptions.Compiled)
         };
 
-        public Task<RuleBasedResponse> CheckAsync(string text)
+        public Task<ModerationLayer1Result> CheckAsync(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
             {
-                return Task.FromResult(new RuleBasedResponse
+                return Task.FromResult(new ModerationLayer1Result
                 {
                     IsViolated = true,
                     ViolationReasons = new List<string> { "Nội dung review không được để trống" }
                 });
             }
 
-            var result = new RuleBasedResponse();
+            var result = new ModerationLayer1Result();
             var violations = new List<string>();
 
             // === 1. CHECK TỪ CẤM ===
