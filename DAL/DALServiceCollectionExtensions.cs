@@ -44,6 +44,10 @@ namespace DAL
             // Cart
             services.AddScoped<ICartRepository, CartRepository>();
 
+            // Order & Wallet
+            services.AddScoped<IOrderRepository, OrderRepository>();
+            services.AddScoped<IWalletRepository, WalletRepository>();
+
             //Nhánh Product
             services.AddScoped<ISuperCategoryRepository, SuperCategoryRepository>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();

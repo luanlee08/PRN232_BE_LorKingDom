@@ -77,6 +77,7 @@ namespace PRN232_LorKingDom
                 });
             });
             builder.Services.AddHttpClient();
+            builder.Services.AddHttpContextAccessor();
 
             builder.Services.AddSingleton<Cloudinary>(sp =>
             {
