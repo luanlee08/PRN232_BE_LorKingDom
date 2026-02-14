@@ -1515,5 +1515,214 @@ namespace BLL.Services
         }
 
         #endregion
+
+        #region Admin Management
+
+        public async Task<ApiResponse<PagedResult<OrderResponse>>> GetOrdersAsync(OrderQuery query)
+        {
+            try
+            {
+                var (items, totalCount) = await _orderRepo.GetPagedAsync(
+                    query.Keyword,
+                    query.StatusId,
+                    query.FromDate,
+                    query.ToDate,
+                    query.Page,
+                    query.PageSize,
+                    query.SortBy,
+                    query.SortDesc);
+
+                var orderResponses = items.Select(o => new OrderResponse
+                {
+                    OrderId = o.OrderId,
+                    OrderCode = $"ORD{o.OrderId:D6}",
+                    CustomerName = o.ShippingName ?? o.Account?.AccountName ?? "Unknown",
+                    CustomerPhone = o.ShippingPhone ?? o.Account?.PhoneNumber ?? "",
+                    StatusId = o.StatusId,
+                    StatusName = o.Status?.StatusName ?? "",
+                    TotalAmount = o.TotalAmount,
+                    ShippingAddress = $"{o.ShippingAddressLine}, {o.ShippingWard}, {o.ShippingCity}",
+                    OrderDate = o.OrderDate,
+                    PaymentCompletedAt = o.PaymentCompletedAt,
+                    RefundStatus = o.RefundStatus,
+                    OrderDetails = o.OrderDetails.Select(od => new OrderDetailItemResponse
+                    {
+                        ProductId = od.ProductId,
+                        ProductName = od.Product?.ProductName ?? "",
+                        Quantity = od.Quantity,
+                        UnitPrice = od.UnitPrice,
+                        Total = od.Quantity * od.UnitPrice,
+                        ImageUrl = od.Product?.ProductImages?.FirstOrDefault()?.ImageUrl
+                    }).ToList()
+                }).ToList();
+
+                var pagedResult = new PagedResult<OrderResponse>
+                {
+                    Items = orderResponses,
+                    TotalCount = totalCount,
+                    Page = query.Page,
+                    PageSize = query.PageSize
+                };
+
+                return new ApiResponse<PagedResult<OrderResponse>>
+                {
+                    Status = 200,
+                    StatusMessage = "SUCCESS",
+                    Message = "Lấy danh sách đơn hàng thành công",
+                    Data = pagedResult
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting orders");
+                return new ApiResponse<PagedResult<OrderResponse>>
+                {
+                    Status = 500,
+                    StatusMessage = "FAILED",
+                    Message = "Có lỗi xảy ra khi lấy danh sách đơn hàng"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<OrderDetailResponse>> GetOrderDetailAsync(int orderId)
+        {
+            try
+            {
+                var order = await _orderRepo.GetByIdWithDetailsAsync(orderId);
+                if (order == null)
+                {
+                    return new ApiResponse<OrderDetailResponse>
+                    {
+                        Status = 404,
+                        StatusMessage = "NOT_FOUND",
+                        Message = "Không tìm thấy đơn hàng"
+                    };
+                }
+
+                var response = new OrderDetailResponse
+                {
+                    OrderId = order.OrderId,
+                    OrderCode = $"ORD{order.OrderId:D6}",
+                    CustomerName = order.ShippingName ?? order.Account?.AccountName ?? "Unknown",
+                    CustomerPhone = order.ShippingPhone ?? order.Account?.PhoneNumber ?? "",
+                    StatusId = order.StatusId,
+                    StatusName = order.Status?.StatusName ?? "",
+                    TotalAmount = order.TotalAmount,
+                    ShippingAddress = $"{order.ShippingAddressLine}, {order.ShippingWard}, {order.ShippingCity}",
+                    OrderDate = order.OrderDate,
+                    PaymentCompletedAt = order.PaymentCompletedAt,
+                    RefundStatus = order.RefundStatus,
+                    AccountId = order.AccountId,
+                    AccountEmail = order.Account?.Email ?? "",
+                    VoucherId = order.VoucherId,
+                    VoucherCode = order.Voucher?.VoucherCode,
+                    VoucherDiscount = order.Voucher?.DiscountValue,
+                    ShippingMethod = order.ShippingMethod,
+                    ShippingFee = order.ShippingFee,
+                    PaidByWalletAmount = order.PaidByWalletAmount,
+                    PaidByExternalAmount = order.PaidByExternalAmount,
+                    CreatedAt = order.CreatedAt,
+                    UpdatedAt = order.UpdatedAt,
+                    OrderDetails = order.OrderDetails.Select(od => new OrderDetailItemResponse
+                    {
+                        ProductId = od.ProductId,
+                        ProductName = od.Product?.ProductName ?? "",
+                        Quantity = od.Quantity,
+                        UnitPrice = od.UnitPrice,
+                        Total = od.Quantity * od.UnitPrice,
+                        ImageUrl = od.Product?.ProductImages?.FirstOrDefault()?.ImageUrl
+                    }).ToList(),
+                    StatusHistories = order.OrderStatusHistories.Select(sh => new OrderStatusHistoryResponse
+                    {
+                        OrderStatusHistoryId = sh.OrderStatusHistoryId,
+                        StatusId = sh.StatusId ?? 0,
+                        StatusName = sh.Status?.StatusName ?? "",
+                        ChangedAt = sh.ChangedAt,
+                        ChangedBy = sh.ChangedBy,
+                        ChangedByName = sh.ChangedByNavigation?.AccountName,
+                        Note = sh.Note
+                    }).ToList()
+                };
+
+                return new ApiResponse<OrderDetailResponse>
+                {
+                    Status = 200,
+                    StatusMessage = "SUCCESS",
+                    Message = "Lấy chi tiết đơn hàng thành công",
+                    Data = response
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting order detail for OrderId: {OrderId}", orderId);
+                return new ApiResponse<OrderDetailResponse>
+                {
+                    Status = 500,
+                    StatusMessage = "FAILED",
+                    Message = "Có lỗi xảy ra khi lấy chi tiết đơn hàng"
+                };
+            }
+        }
+
+        public async Task<byte[]> ExportOrdersToExcelAsync(OrderQuery query)
+        {
+            var orders = await _orderRepo.GetOrdersForExportAsync(
+                query.Keyword,
+                query.StatusId,
+                query.FromDate,
+                query.ToDate,
+                query.SortBy,
+                query.SortDesc,
+                5000);
+
+            using var package = new OfficeOpenXml.ExcelPackage();
+            var worksheet = package.Workbook.Worksheets.Add("Orders");
+
+            // Headers
+            worksheet.Cells[1, 1].Value = "Order ID";
+            worksheet.Cells[1, 2].Value = "Order Code";
+            worksheet.Cells[1, 3].Value = "Customer Name";
+            worksheet.Cells[1, 4].Value = "Customer Phone";
+            worksheet.Cells[1, 5].Value = "Email";
+            worksheet.Cells[1, 6].Value = "Status";
+            worksheet.Cells[1, 7].Value = "Total Amount";
+            worksheet.Cells[1, 8].Value = "Shipping Fee";
+            worksheet.Cells[1, 9].Value = "Shipping Address";
+            worksheet.Cells[1, 10].Value = "Order Date";
+            worksheet.Cells[1, 11].Value = "Payment Completed";
+
+            // Style header
+            using (var range = worksheet.Cells[1, 1, 1, 11])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            // Data
+            int row = 2;
+            foreach (var order in orders)
+            {
+                worksheet.Cells[row, 1].Value = order.OrderId;
+                worksheet.Cells[row, 2].Value = $"ORD{order.OrderId:D6}";
+                worksheet.Cells[row, 3].Value = order.ShippingName ?? order.Account?.AccountName ?? "Unknown";
+                worksheet.Cells[row, 4].Value = order.ShippingPhone ?? "";
+                worksheet.Cells[row, 5].Value = order.Account?.Email ?? "";
+                worksheet.Cells[row, 6].Value = order.Status?.StatusName ?? "";
+                worksheet.Cells[row, 7].Value = order.TotalAmount;
+                worksheet.Cells[row, 8].Value = order.ShippingFee;
+                worksheet.Cells[row, 9].Value = $"{order.ShippingAddressLine}, {order.ShippingWard}, {order.ShippingCity}";
+                worksheet.Cells[row, 10].Value = order.OrderDate.ToString("yyyy-MM-dd HH:mm");
+                worksheet.Cells[row, 11].Value = order.PaymentCompletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "";
+                row++;
+            }
+
+            // Auto-fit columns
+            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+            return package.GetAsByteArray();
+        }
+
+        #endregion
     }
 }

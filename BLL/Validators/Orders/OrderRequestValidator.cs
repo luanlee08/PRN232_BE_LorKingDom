@@ -96,18 +96,4 @@ namespace BLL.Validators.Orders
             return validMethods.Contains(shippingMethod);
         }
     }
-
-    public class UpdateOrderStatusRequestValidator : AbstractValidator<UpdateOrderStatusRequest>
-    {
-        public UpdateOrderStatusRequestValidator()
-        {
-            RuleFor(x => x.StatusId)
-                .GreaterThan(0)
-                .WithMessage("Trạng thái đơn hàng không hợp lệ");
-
-            RuleFor(x => x.Note)
-                .MaximumLength(500)
-                .WithMessage("Ghi chú không được vượt quá 500 ký tự");
-        }
-    }
 }
