@@ -35,6 +35,21 @@ namespace BLL
             // Cart
             services.AddScoped<ICartService, CartServices>();
 
+            // Order
+            services.AddScoped<IOrderService, OrderService>();
+
+            // Payment Gateways
+            services.AddScoped<IVNPayService, VNPayService>();
+            services.AddScoped<IMoMoService, MoMoService>();
+            services.AddScoped<ISepayService, SepayService>();
+
+            // Shipping Providers
+            services.AddScoped<IGoShipService, GoShipService>();
+            services.AddScoped<IGHNService, GHNService>();
+
+            // HttpClient for payment & shipping services
+            services.AddHttpClient();
+
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IProductImageService, ProductImageService>();
 
