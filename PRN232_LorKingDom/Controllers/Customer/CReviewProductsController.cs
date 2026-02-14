@@ -21,7 +21,39 @@ namespace PRN232_LorKingDom.Controllers.Customer
         public async Task<IActionResult> GetReviews([FromQuery] ReviewListQuery query)
         {
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var result = await _reviewProductService.GetReviewsAsync(query, Convert.ToInt32(accountIdClaim));
+            int? accountId = null;
+            if (!string.IsNullOrEmpty(accountIdClaim) && int.TryParse(accountIdClaim, out int parsedId))
+            {
+                accountId = parsedId;
+            }
+            var result = await _reviewProductService.GetReviewsAsync(query, accountId);
+            return StatusCode(result.Status, result);
+        }
+
+        /// Lấy thống kê review của sản phẩm 
+        [HttpGet("summary/{productId}")]
+        public async Task<IActionResult> GetReviewSummary(int productId)
+        {
+            var result = await _reviewProductService.GetReviewSummaryAsync(productId);
+            return StatusCode(result.Status, result);
+        }
+
+        /// Lấy lịch sử review của customer trên cùng sản phẩm (bao gồm review cũ)
+        [HttpGet("history")]
+        public async Task<IActionResult> GetMyReviewHistory([FromQuery] int productId)
+        {
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountIdClaim))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Status = 401,
+                    StatusMessage = "UNAUTHORIZED",
+                    Message = "Không thể xác thực người dùng"
+                });
+            }
+
+            var result = await _reviewProductService.GetMyReviewHistoryAsync(productId, Convert.ToInt32(accountIdClaim));
             return StatusCode(result.Status, result);
         }
 

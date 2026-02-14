@@ -9,5 +9,6 @@ namespace BLL.DTOs.SuperCategories
     public class CreateSuperCategoryRequest
     {
         public string SuperCategoryName { get; set; } = string.Empty;
+        public bool IsDeleted { get; set; }
     }
 }
