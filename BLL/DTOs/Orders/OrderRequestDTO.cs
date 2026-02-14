@@ -22,12 +22,6 @@
         public string? IdempotencyKey { get; set; } // Prevent duplicate orders
     }
 
-    public class UpdateOrderStatusRequest
-    {
-        public int StatusId { get; set; }
-        public string? Note { get; set; }
-    }
-
     public class CreateRefundRequest
     {
         public int OrderId { get; set; }
