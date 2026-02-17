@@ -164,6 +164,7 @@ namespace BLL.Services
                         AccountName = account.AccountName,
                         Email = account.Email,
                         PhoneNumber = account.PhoneNumber,
+                        Image = account.Image,
                         RoleName = account.Role?.RoleName ?? "Customer"
                     }
                 }
@@ -226,6 +227,7 @@ namespace BLL.Services
                         AccountName = account.AccountName,
                         Email = account.Email,
                         PhoneNumber = account.PhoneNumber,
+                        Image = account.Image,
                         RoleName = account.Role?.RoleName ?? "Customer"
                     }
                 }
@@ -284,6 +286,7 @@ namespace BLL.Services
                         AccountName = account.AccountName,
                         Email = account.Email,
                         PhoneNumber = account.PhoneNumber,
+                        Image = account.Image,
                         RoleName = account.Role?.RoleName ?? "Customer"
                     }
                 }
