@@ -73,6 +73,11 @@ namespace DAL.Repositories
             {
                 query = query.Where(x => x.RoleId == roleId.Value);
             }
+            else
+            {
+                // Khi không chỉ định roleId, chỉ lấy Staff (2) và Warehouse (3) - không lấy Admin (1) và Customer (4)
+                query = query.Where(x => x.RoleId == 2 || x.RoleId == 3);
+            }
 
             if (!string.IsNullOrWhiteSpace(status))
             {

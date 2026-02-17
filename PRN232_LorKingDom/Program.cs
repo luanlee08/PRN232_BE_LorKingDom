@@ -79,6 +79,8 @@ namespace PRN232_LorKingDom
             builder.Services.AddHttpClient();
             builder.Services.AddHttpContextAccessor();
 
+            // Cloudinary - Dùng cho ReviewProductService và các chức năng khác
+            // ProfileService đã chuyển sang lưu local
             builder.Services.AddSingleton<Cloudinary>(sp =>
             {
                 var config = sp.GetRequiredService<IConfiguration>();
@@ -182,9 +184,6 @@ namespace PRN232_LorKingDom
                     }
                 });
             });
-
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 

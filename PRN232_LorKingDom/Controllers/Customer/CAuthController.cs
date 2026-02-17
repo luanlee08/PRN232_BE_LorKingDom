@@ -3,15 +3,15 @@ using BLL.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace PRN232_LorKingDom.Controllers
+namespace PRN232_LorKingDom.Controllers.Customer
 {
     [ApiController]
-    [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    [Route("api/auth")]
+    public class CAuthController : ControllerBase
     {
         private readonly IAuthService _authService;
 
-        public AuthController(IAuthService authService)
+        public CAuthController(IAuthService authService)
         {
             _authService = authService;
         }
