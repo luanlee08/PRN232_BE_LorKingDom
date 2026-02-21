@@ -15,11 +15,39 @@ public partial class Address
 
     public string City { get; set; } = null!;
 
+    public string? District { get; set; }
+
     public string? Ward { get; set; }
 
     public bool IsDefault { get; set; }
 
     public bool IsDeleted { get; set; }
+    /// <summary>
+    /// Name of the person who will receive the order at this address
+    /// </summary>
+    public string? RecipientName { get; set; }
+
+    /// <summary>
+    /// Phone number of the recipient for delivery contact
+    /// </summary>
+    public string? PhoneNumber { get; set; }
+
+    /// <summary>
+    /// GHN Province ID for shipping integration (from GHN master data API)
+    /// </summary>
+    public int? ProvinceId { get; set; }
+
+    /// <summary>
+    /// GHN District ID for shipping integration (from GHN master data API)
+    /// Required for accurate shipping fee calculation
+    /// </summary>
+    public int? DistrictId { get; set; }
+
+    /// <summary>
+    /// GHN Ward Code for shipping integration (from GHN master data API)
+    /// Format: "21211" (5-digit string code)
+    /// </summary>
+    public string? WardCode { get; set; }
 
     public DateTime CreatedAt { get; set; }
 

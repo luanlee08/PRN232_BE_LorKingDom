@@ -1,7 +1,11 @@
 using BLL.DTOs;
+using BLL.DTOs.Notifications;
 using BLL.DTOs.Orders;
 using BLL.DTOs.PaymentGateway;
+using BLL.DTOs.Shipping;
+using BLL.Helpers.Notification;
 using BLL.Interfaces;
+using BLL.Interfaces.Notification;
 using DAL.Interface;
 using DAL.Models;
 using Microsoft.AspNetCore.Http;
@@ -22,8 +26,8 @@ namespace BLL.Services
         private readonly IVNPayService _vnPayService;
         private readonly IMoMoService _moMoService;
         private readonly ISepayService _sepayService;
-        private readonly IGoShipService _goShipService;
         private readonly IGHNService _ghnService;
+        private readonly INotificationCommandService _notificationService;
         private readonly IConfiguration _configuration;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<OrderService> _logger;
@@ -37,8 +41,8 @@ namespace BLL.Services
             IVNPayService vnPayService,
             IMoMoService moMoService,
             ISepayService sepayService,
-            IGoShipService goShipService,
             IGHNService ghnService,
+            INotificationCommandService notificationService,
             IConfiguration configuration,
             IHttpContextAccessor httpContextAccessor,
             ILogger<OrderService> logger)
@@ -51,8 +55,8 @@ namespace BLL.Services
             _vnPayService = vnPayService;
             _moMoService = moMoService;
             _sepayService = sepayService;
-            _goShipService = goShipService;
             _ghnService = ghnService;
+            _notificationService = notificationService;
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
@@ -162,11 +166,15 @@ namespace BLL.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                _logger.LogInformation("Creating order for account {AccountId} with payment method {PaymentMethod}",
+                    accountId, request.PaymentMethod);
+
                 // 1. Validate cart and get items
                 var cart = await _cartRepo.GetCartByAccountIdAsync(accountId);
 
                 if (cart == null || !cart.CartItems.Any())
                 {
+                    _logger.LogWarning("Cart is empty for account {AccountId}", accountId);
                     return new ApiResponse<CreateOrderResponse>
                     {
                         Status = 400,
@@ -174,6 +182,8 @@ namespace BLL.Services
                         Message = "Giỏ hàng trống"
                     };
                 }
+
+                _logger.LogInformation("Found cart with {ItemCount} items", cart.CartItems.Count());
 
                 // 2. Validate products and calculate subtotal
                 decimal subtotal = 0;
@@ -252,14 +262,16 @@ namespace BLL.Services
                     }
                 }
 
-                // 4. Calculate shipping fee (simplified - you can integrate with shipping provider)
-                decimal shippingFee = request.ShippingMethod switch
+                // 4. Calculate shipping fee
+                // Use client-provided fee if available (from GHN real-time calculation)
+                // Otherwise fallback to fixed pricing
+                decimal shippingFee = request.ShippingFee ?? (request.ShippingMethod switch
                 {
                     ShippingMethods.Express => 50000,
                     ShippingMethods.Standard => 30000,
                     ShippingMethods.Economy => 20000,
                     _ => 30000
-                };
+                });
 
                 decimal totalAmount = subtotal - discount + shippingFee;
 
@@ -282,7 +294,7 @@ namespace BLL.Services
                 }
 
                 // 7. Create Order
-                var order = new Order
+                var order = new DAL.Models.Order
                 {
                     AccountId = accountId,
                     VoucherId = request.VoucherId,
@@ -290,8 +302,17 @@ namespace BLL.Services
                     ShippingName = request.ShippingName ?? "",
                     ShippingPhone = request.ShippingPhone ?? "",
                     ShippingAddressLine = request.ShippingAddressLine ?? address?.AddressLine ?? "",
+
+                    // Text names (for display)
                     ShippingCity = request.ShippingCity ?? address?.City ?? "",
+                    ShippingDistrict = request.ShippingDistrict ?? address?.District ?? "",
                     ShippingWard = request.ShippingWard ?? address?.Ward ?? "",
+
+                    // GHN IDs (for reliable shipping)
+                    ShippingProvinceId = request.ShippingProvinceId ?? address?.ProvinceId,
+                    ShippingDistrictId = request.ShippingDistrictId ?? address?.DistrictId,
+                    ShippingWardCode = request.ShippingWardCode ?? address?.WardCode,
+
                     ShippingMethod = request.ShippingMethod,
                     ShippingFee = shippingFee,
                     OrderDate = DateTime.UtcNow,
@@ -405,6 +426,42 @@ namespace BLL.Services
                 // 11. Clear cart
                 await _cartRepo.DeleteAllCartItemsAsync(cart.CartId);
 
+                // 12. Send ORDER_CREATED notification (system-generated)
+                try
+                {
+                    var orderCode = $"ORD{order.OrderId:D6}";
+                    var payload = JsonSerializer.Serialize(new
+                    {
+                        type = "order",
+                        orderId = order.OrderId,
+                        orderCode = orderCode,
+                        totalAmount = totalAmount,
+                        link = $"/orders/{order.OrderId}"
+                    });
+
+                    await _notificationService.SendNotificationAsync(
+                        new SendNotificationRequest
+                        {
+                            TemplateCode = NotificationConstants.SystemOnlyTemplateCodes.OrderCreated,
+                            TargetType = NotificationConstants.TargetTypes.User,
+                            TargetUserId = accountId,
+                            Parameters = new Dictionary<string, string>
+                            {
+                                { "orderCode", orderCode },
+                                { "totalAmount", totalAmount.ToString("N0") }
+                            },
+                            Payload = payload
+                        },
+                        createdByAccountId: 0, // System account
+                        isSystemGenerated: true // Bypass admin restrictions
+                    );
+                }
+                catch (Exception notifEx)
+                {
+                    // Log but don't fail the order creation
+                    _logger.LogError(notifEx, "Failed to send ORDER_CREATED notification for order {OrderId}", order.OrderId);
+                }
+
                 await transaction.CommitAsync();
 
                 return new ApiResponse<CreateOrderResponse>
@@ -440,7 +497,7 @@ namespace BLL.Services
         }
 
         private async Task<(bool Success, string Message)> ProcessWalletPaymentAsync(
-            Order order, int accountId, decimal amount, Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction)
+            DAL.Models.Order order, int accountId, decimal amount, Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction)
         {
             try
             {
@@ -515,6 +572,20 @@ namespace BLL.Services
                         CreatedAt = DateTime.UtcNow
                     });
                 }
+
+                // Send payment success notification (fire-and-forget, don't await to avoid blocking)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var orderCode = $"ORD{order.OrderId:D6}";
+                        await SendPaymentNotificationAsync(order.OrderId, accountId, orderCode, true, PaymentMethods.Wallet, amount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send payment notification for Order {OrderId}", order.OrderId);
+                    }
+                });
 
                 return (true, "Thanh toán ví thành công");
             }
@@ -845,7 +916,64 @@ namespace BLL.Services
                 });
 
                 await _context.SaveChangesAsync();
+
+                // Send appropriate notification based on status change (system-generated)
+                var orderCode = $"ORD{order.OrderId:D6}";
+                await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, newStatus.StatusName, orderCode);
+
                 await transaction.CommitAsync();
+
+                // Auto-create GHN shipping order if requested and status is Processing or Confirmed
+                CreateShippingOrderResponse? shippingResponse = null;
+                string? shippingError = null;
+                if (request.AutoCreateShipping &&
+                    (newStatus.StatusName == "Processing" || newStatus.StatusName == "Confirmed"))
+                {
+                    _logger.LogInformation($"Auto-creating GHN shipping for order {orderId} (Status: {newStatus.StatusName})");
+
+                    // Check if shipping already exists
+                    var existingShipping = await _context.ShippingProviderTransactions
+                        .FirstOrDefaultAsync(s => s.OrderId == orderId && s.Provider == "GHN");
+
+                    if (existingShipping == null)
+                    {
+                        try
+                        {
+                            var shippingRequest = new CreateShippingOrderRequest
+                            {
+                                OrderId = orderId,
+                                Provider = "GHN",
+                                ServiceId = request.ShippingServiceId ?? 53321,
+                                ServiceTypeId = 2, // Standard Express
+                                Note = request.ShippingNote ?? "Đơn hàng từ LorKingdom",
+                                RequiredNote = request.ShippingRequiredNote ?? "KHONGCHOXEMHANG"
+                            };
+
+                            var shippingResult = await CreateShippingOrderAsync(shippingRequest, adminId);
+
+                            if (shippingResult.Status == 200)
+                            {
+                                shippingResponse = shippingResult.Data;
+                                _logger.LogInformation($"✅ Auto-created GHN shipping: {shippingResponse?.OrderCode}");
+                            }
+                            else
+                            {
+                                shippingError = shippingResult.Message;
+                                _logger.LogWarning($"⚠️ Failed to auto-create GHN shipping: {shippingError} (Status: {shippingResult.Status})");
+                            }
+                        }
+                        catch (Exception shippingEx)
+                        {
+                            // Don't fail the whole operation if shipping creation fails
+                            shippingError = shippingEx.Message;
+                            _logger.LogError(shippingEx, "Error auto-creating GHN shipping order: {Error}", shippingError);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Shipping already exists for order {orderId}, skipping auto-create");
+                    }
+                }
 
                 // Get updated order
                 var updatedOrder = await _context.Orders
@@ -854,19 +982,430 @@ namespace BLL.Services
                         .ThenInclude(od => od.Product)
                     .FirstAsync(o => o.OrderId == orderId);
 
-                return new ApiResponse<OrderDto>
+                var response = new ApiResponse<OrderDto>
                 {
                     Status = 200,
                     StatusMessage = "SUCCESS",
                     Message = "Cập nhật trạng thái đơn hàng thành công",
                     Data = MapToDto(updatedOrder)
                 };
+
+                // Add shipping info to response if auto-created
+                if (shippingResponse != null)
+                {
+                    response.Message += $" và đã tạo đơn GHN (Mã vận đơn: {shippingResponse.OrderCode})";
+                }
+                else if (request.AutoCreateShipping && shippingError != null)
+                {
+                    response.Message += $". ⚠️ Không tạo được đơn GHN: {shippingError}";
+                }
+
+                return response;
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 _logger.LogError(ex, "Error updating order status");
                 return new ApiResponse<OrderDto>
+                {
+                    Status = 500,
+                    StatusMessage = "ERROR",
+                    Message = "Có lỗi xảy ra: " + ex.Message
+                };
+            }
+        }
+
+        #endregion
+
+        #region Shipping Management
+
+        public async Task<ApiResponse<CreateShippingOrderResponse>> CreateShippingOrderAsync(
+            CreateShippingOrderRequest request, int adminId)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Get order
+                var order = await _context.Orders
+                    .Include(o => o.Status)
+                    .Include(o => o.OrderDetails)
+                        .ThenInclude(od => od.Product)
+                    .FirstOrDefaultAsync(o => o.OrderId == request.OrderId && !o.IsDeleted);
+
+                if (order == null)
+                {
+                    return new ApiResponse<CreateShippingOrderResponse>
+                    {
+                        Status = 404,
+                        StatusMessage = "NOT_FOUND",
+                        Message = "Không tìm thấy đơn hàng"
+                    };
+                }
+
+                // 2. Check if order already has shipping
+                var existingShipping = await _context.ShippingProviderTransactions
+                    .FirstOrDefaultAsync(s => s.OrderId == request.OrderId && s.Provider == request.Provider);
+
+                if (existingShipping != null)
+                {
+                    return new ApiResponse<CreateShippingOrderResponse>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = $"Đơn hàng đã có vận đơn {request.Provider}: {existingShipping.ProviderOrderCode}"
+                    };
+                }
+
+                // 3. Get shop configuration
+                var shopName = _configuration["ShopAddress:Name"] ?? "LorKingdom Shop";
+                var shopPhone = _configuration["ShopAddress:Phone"] ?? "0987654321";
+                var shopAddress = _configuration["ShopAddress:AddressLine"] ?? "123 Đường chính, Bình Thủy, Cần Thơ";
+                var shopWardName = _configuration["ShopAddress:WardName"] ?? "Phường Bình Thủy";
+                var shopWardCode = _configuration["ShopAddress:WardCode"] ?? "";
+                var shopDistrictName = _configuration["ShopAddress:DistrictName"] ?? "Quận Bình Thủy";
+                var shopDistrictId = int.Parse(_configuration["ShopAddress:DistrictId"] ?? "3695");
+                var shopProvinceName = _configuration["ShopAddress:ProvinceName"] ?? "Cần Thơ";
+
+                // 4. Prepare items
+                var items = order.OrderDetails.Select(od => new BLL.DTOs.Shipping.GHNItem
+                {
+                    Name = od.Product?.ProductName ?? "Product",
+                    Code = $"PRD{od.ProductId}",
+                    Quantity = od.Quantity,
+                    Price = (int)od.UnitPrice,
+                    Weight = 500 // Default 500g per item
+                }).ToArray();
+
+                // 5. Validate shipping address completeness
+                if (string.IsNullOrEmpty(order.ShippingCity))
+                {
+                    return new ApiResponse<CreateShippingOrderResponse>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = "Đơn hàng thiếu thông tin Tỉnh/Thành phố. Vui lòng cập nhật địa chỉ giao hàng đầy đủ."
+                    };
+                }
+
+                if (string.IsNullOrEmpty(order.ShippingDistrict))
+                {
+                    return new ApiResponse<CreateShippingOrderResponse>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = "Đơn hàng thiếu thông tin Quận/Huyện. Vui lòng cập nhật địa chỉ giao hàng đầy đủ."
+                    };
+                }
+
+                // 6. Get district ID and ward code from shipping address
+                int? toDistrictId = null;
+                string? toWardCode = null;
+
+                // PRIORITY 1: Use stored GHN IDs from order (fastest, most reliable)
+                if (order.ShippingDistrictId.HasValue)
+                {
+                    toDistrictId = order.ShippingDistrictId;
+                    toWardCode = order.ShippingWardCode;
+
+                    _logger.LogInformation($"[CreateGHNShipping] ✅ Using stored GHN IDs: DistrictId={toDistrictId}, WardCode={toWardCode}");
+                }
+                // FALLBACK: Legacy orders without GHN IDs - use dynamic lookup
+                else if (!string.IsNullOrEmpty(order.ShippingCity) && !string.IsNullOrEmpty(order.ShippingDistrict))
+                {
+                    _logger.LogWarning($"[CreateGHNShipping] ⚠️ No stored GHN IDs, attempting text-based lookup for '{order.ShippingDistrict}, {order.ShippingCity}'");
+
+                    toDistrictId = await _ghnService.GetDistrictIdByNameAsync(
+                        order.ShippingCity,
+                        order.ShippingDistrict);
+
+                    // Get ward code if district found and ward specified
+                    if (toDistrictId.HasValue && !string.IsNullOrEmpty(order.ShippingWard))
+                    {
+                        toWardCode = await _ghnService.GetWardCodeByNameAsync(
+                            toDistrictId.Value,
+                            order.ShippingWard);
+
+                        if (!string.IsNullOrEmpty(toWardCode))
+                        {
+                            _logger.LogInformation($"[CreateGHNShipping] ✅ Fallback lookup successful: DistrictId={toDistrictId}, WardCode={toWardCode}");
+                        }
+                    }
+                }
+
+                if (!toDistrictId.HasValue)
+                {
+                    return new ApiResponse<CreateShippingOrderResponse>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = $"Không thể xác định quận/huyện giao hàng cho '{order.ShippingDistrict}, {order.ShippingCity}'. " +
+                                  $"Vui lòng cập nhật lại địa chỉ giao hàng với thông tin GHN IDs đầy đủ."
+                    };
+                }
+
+                // 7. Create GHN order request
+                var ghnRequest = new BLL.DTOs.Shipping.GHNCreateOrderRequest
+                {
+                    PaymentTypeId = order.Status.StatusName == OrderStatusNames.Pending ? "2" : "1", // 2=COD, 1=Shop pays
+                    Note = request.Note ?? $"Đơn hàng ORD{order.OrderId:D6}",
+                    RequiredNote = request.RequiredNote,
+                    // Sender/Pickup Information
+                    FromName = shopName,
+                    FromPhone = shopPhone,
+                    FromAddress = shopAddress,
+                    FromWardName = shopWardName,
+                    FromDistrictName = shopDistrictName,
+                    FromProvinceName = shopProvinceName,
+                    FromDistrictId = shopDistrictId, // REQUIRED for GHN warehouse
+                    // Return Information
+                    ReturnPhone = shopPhone,
+                    ReturnAddress = shopAddress,
+                    ReturnDistrictId = shopDistrictId.ToString(),
+                    ReturnWardCode = shopWardCode,
+                    // Order Information
+                    ClientOrderCode = $"ORD{order.OrderId:D6}",
+                    // Recipient Information
+                    ToName = order.ShippingName ?? "Customer",
+                    ToPhone = order.ShippingPhone ?? "",
+                    ToAddress = order.ShippingAddressLine ?? "",
+                    ToWardCode = toWardCode ?? "", // Ward code from lookup
+                    ToDistrictId = toDistrictId.Value,
+                    ToWardName = order.ShippingWard ?? "", // REQUIRED by GHN docs
+                    ToDistrictName = order.ShippingDistrict ?? "", // REQUIRED by GHN docs
+                    ToProvinceName = order.ShippingCity ?? "", // REQUIRED by GHN docs
+                    // Package Details
+                    CodAmount = (int)order.TotalAmount,
+                    Content = "Sản phẩm thú cưng",
+                    Weight = items.Sum(i => i.Weight * i.Quantity),
+                    Length = 30,
+                    Width = 20,
+                    Height = 10,
+                    ServiceId = request.ServiceId,
+                    ServiceTypeId = request.ServiceTypeId,
+                    InsuranceValue = order.TotalAmount > 1000000 ? (int)order.TotalAmount : null, // Insurance if > 1M VND
+                    Items = items
+                };
+
+                // 8. Call GHN API
+                var ghnResponse = await _ghnService.CreateOrderAsync(ghnRequest);
+
+                if (ghnResponse.Code != 200 || ghnResponse.Data == null)
+                {
+                    return new ApiResponse<CreateShippingOrderResponse>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = $"Tạo đơn GHN thất bại: {ghnResponse.Message}"
+                    };
+                }
+
+                // 9. Save shipping transaction
+                var shippingTransaction = new ShippingProviderTransaction
+                {
+                    OrderId = order.OrderId,
+                    Provider = "GHN",
+                    ProviderOrderCode = ghnResponse.Data.OrderCode,
+                    TrackingNumber = ghnResponse.Data.OrderCode,
+                    ServiceType = $"Service ID: {request.ServiceId}",
+                    Status = "ready_to_pick",
+                    ShippingFee = ghnResponse.Data.TotalFee,
+                    EstimatedDelivery = DateTime.TryParse(ghnResponse.Data.ExpectedDeliveryTime, out var estDate)
+                        ? estDate
+                        : null,
+                    Metadata = JsonSerializer.Serialize(ghnResponse.Data),
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.ShippingProviderTransactions.Add(shippingTransaction);
+                await _context.SaveChangesAsync();
+
+                // 10. Update order status to "Processing" or "Shipped"
+                var shippedStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Processing);
+                if (shippedStatus != null)
+                {
+                    order.StatusId = shippedStatus.StatusId;
+                    order.UpdatedAt = DateTime.UtcNow;
+
+                    // Add status history
+                    _context.OrderStatusHistories.Add(new OrderStatusHistory
+                    {
+                        OrderId = order.OrderId,
+                        StatusId = shippedStatus.StatusId,
+                        ChangedAt = DateTime.UtcNow,
+                        ChangedBy = adminId,
+                        Note = $"Đã tạo vận đơn GHN: {ghnResponse.Data.OrderCode}",
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    await _context.SaveChangesAsync();
+
+                    // Send notification
+                    var orderCode = $"ORD{order.OrderId:D6}";
+                    await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, shippedStatus.StatusName, orderCode);
+                }
+
+                await transaction.CommitAsync();
+
+                return new ApiResponse<CreateShippingOrderResponse>
+                {
+                    Status = 200,
+                    StatusMessage = "SUCCESS",
+                    Message = "Tạo đơn vận chuyển thành công",
+                    Data = new CreateShippingOrderResponse
+                    {
+                        Success = true,
+                        Message = "Đã tạo vận đơn GHN thành công",
+                        OrderCode = ghnResponse.Data.OrderCode,
+                        TrackingNumber = ghnResponse.Data.OrderCode,
+                        Fee = ghnResponse.Data.TotalFee,
+                        ExpectedDeliveryTime = ghnResponse.Data.ExpectedDeliveryTime,
+                        Provider = "GHN"
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error creating shipping order for OrderId {OrderId}", request.OrderId);
+                return new ApiResponse<CreateShippingOrderResponse>
+                {
+                    Status = 500,
+                    StatusMessage = "ERROR",
+                    Message = "Có lỗi xảy ra: " + ex.Message
+                };
+            }
+        }
+
+        public async Task<ApiResponse<object>> HandleShippingWebhookAsync(
+            string provider, GHNWebhookRequest webhookData)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _logger.LogInformation("Received shipping webhook from {Provider}: {OrderCode} - {Status}",
+                    provider, webhookData.Data.OrderCode, webhookData.Data.Status);
+
+                // 1. Find shipping transaction
+                var shippingTransaction = await _context.ShippingProviderTransactions
+                    .Include(s => s.Order)
+                        .ThenInclude(o => o.Status)
+                    .FirstOrDefaultAsync(s => s.Provider == provider &&
+                                            s.ProviderOrderCode == webhookData.Data.OrderCode);
+
+                if (shippingTransaction == null)
+                {
+                    _logger.LogWarning("Shipping transaction not found for OrderCode: {OrderCode}", webhookData.Data.OrderCode);
+                    return new ApiResponse<object>
+                    {
+                        Status = 404,
+                        StatusMessage = "NOT_FOUND",
+                        Message = "Không tìm thấy vận đơn"
+                    };
+                }
+
+                // 2. Update shipping transaction status
+                shippingTransaction.Status = webhookData.Data.Status;
+                shippingTransaction.UpdatedAt = DateTime.UtcNow;
+
+                // Update metadata
+                var metadata = string.IsNullOrEmpty(shippingTransaction.Metadata)
+                    ? new Dictionary<string, object>()
+                    : JsonSerializer.Deserialize<Dictionary<string, object>>(shippingTransaction.Metadata) ?? new Dictionary<string, object>();
+
+                metadata[$"status_update_{DateTime.UtcNow:yyyyMMddHHmmss}"] = new
+                {
+                    status = webhookData.Data.Status,
+                    statusText = webhookData.Data.StatusText,
+                    reason = webhookData.Data.Reason,
+                    time = webhookData.Data.Time
+                };
+
+                shippingTransaction.Metadata = JsonSerializer.Serialize(metadata);
+
+                // 3. Update actual delivery time if delivered
+                if (webhookData.Data.Status == "delivered")
+                {
+                    shippingTransaction.ActualDelivery = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
+
+                // 4. Update order status based on shipping status
+                var order = shippingTransaction.Order;
+                StatusOrder? newStatus = null;
+
+                switch (webhookData.Data.Status)
+                {
+                    case "ready_to_pick":
+                    case "picking":
+                    case "picked":
+                        // Order is being prepared for shipping
+                        newStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Processing);
+                        break;
+
+                    case "storing":
+                    case "transporting":
+                    case "delivering":
+                        // Order is in transit
+                        newStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Shipped);
+                        break;
+
+                    case "delivered":
+                        // Order has been delivered
+                        newStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Delivered);
+                        break;
+
+                    case "return":
+                    case "returned":
+                    case "exception":
+                        // Order has issues - keep current status or log
+                        _logger.LogWarning("Order {OrderId} has shipping issue: {Status} - {Reason}",
+                            order.OrderId, webhookData.Data.Status, webhookData.Data.Reason);
+                        break;
+                }
+
+                // 5. Update order status if needed
+                if (newStatus != null && order.StatusId != newStatus.StatusId)
+                {
+                    var oldStatusName = order.Status.StatusName;
+                    order.StatusId = newStatus.StatusId;
+                    order.UpdatedAt = DateTime.UtcNow;
+
+                    // Add status history
+                    _context.OrderStatusHistories.Add(new OrderStatusHistory
+                    {
+                        OrderId = order.OrderId,
+                        StatusId = newStatus.StatusId,
+                        ChangedAt = DateTime.UtcNow,
+                        ChangedBy = null, // System updated
+                        Note = $"Tự động cập nhật từ {provider}: {webhookData.Data.StatusText ?? webhookData.Data.Status}",
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    await _context.SaveChangesAsync();
+
+                    // Send notification
+                    var orderCode = $"ORD{order.OrderId:D6}";
+                    await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, newStatus.StatusName, orderCode);
+
+                    _logger.LogInformation("Order {OrderId} status updated from {OldStatus} to {NewStatus} via webhook",
+                        order.OrderId, oldStatusName, newStatus.StatusName);
+                }
+
+                await transaction.CommitAsync();
+
+                return new ApiResponse<object>
+                {
+                    Status = 200,
+                    StatusMessage = "SUCCESS",
+                    Message = "Đã xử lý webhook thành công"
+                };
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error handling shipping webhook from {Provider}", provider);
+                return new ApiResponse<object>
                 {
                     Status = 500,
                     StatusMessage = "ERROR",
@@ -1019,6 +1558,31 @@ namespace BLL.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                // Send payment notification after commit (success or failure)
+                if (gatewayTxn?.PaymentHistory?.Order != null)
+                {
+                    var order = gatewayTxn.PaymentHistory.Order;
+                    var orderCode = $"ORD{order.OrderId:D6}";
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await SendPaymentNotificationAsync(
+                                order.OrderId,
+                                order.AccountId,
+                                orderCode,
+                                isSuccess,
+                                provider,
+                                gatewayTxn.Amount
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to send payment notification for Order {OrderId}", order.OrderId);
+                        }
+                    });
+                }
+
                 return new ApiResponse<object>
                 {
                     Status = 200,
@@ -1102,6 +1666,26 @@ namespace BLL.Services
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                // Send payment success notification for COD
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await SendPaymentNotificationAsync(
+                            order.OrderId,
+                            order.AccountId,
+                            $"ORD{order.OrderId:D6}",
+                            true,
+                            PaymentMethods.COD,
+                            codPayment.Amount
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send COD payment notification for Order {OrderId}", order.OrderId);
+                    }
+                });
 
                 return new ApiResponse<object>
                 {
@@ -1389,7 +1973,7 @@ namespace BLL.Services
             }
         }
 
-        private async Task RefundToWalletAsync(Order order, int accountId, decimal amount, string reason)
+        private async Task RefundToWalletAsync(DAL.Models.Order order, int accountId, decimal amount, string reason)
         {
             var wallet = await _walletRepo.GetByAccountIdWithLockAsync(accountId);
 
@@ -1427,7 +2011,7 @@ namespace BLL.Services
 
         #region Mapping
 
-        private OrderDto MapToDto(Order order)
+        private OrderDto MapToDto(DAL.Models.Order order)
         {
             return new OrderDto
             {
@@ -1721,6 +2305,115 @@ namespace BLL.Services
             worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
 
             return package.GetAsByteArray();
+        }
+
+        #endregion
+
+        #region Helper Methods - Notifications
+
+        /// <summary>
+        /// Send order status notification to customer (system-generated)
+        /// </summary>
+        private async Task SendOrderStatusNotificationAsync(int orderId, int accountId, string statusName, string orderCode)
+        {
+            try
+            {
+                string? templateCode = statusName switch
+                {
+                    OrderStatusNames.Processing => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
+                    OrderStatusNames.Shipped => NotificationConstants.SystemOnlyTemplateCodes.OrderShipped,
+                    OrderStatusNames.Delivered => NotificationConstants.SystemOnlyTemplateCodes.OrderDelivered,
+                    OrderStatusNames.Cancelled => NotificationConstants.SystemOnlyTemplateCodes.OrderCancelled,
+                    _ => null // Don't send notification for other statuses (Pending, Refunded)
+                };
+
+                if (templateCode == null)
+                    return;
+
+                var payload = JsonSerializer.Serialize(new
+                {
+                    type = "order",
+                    orderId = orderId,
+                    orderCode = orderCode,
+                    status = statusName.ToLower(),
+                    link = $"/orders/{orderId}"
+                });
+
+                await _notificationService.SendNotificationAsync(
+                    new SendNotificationRequest
+                    {
+                        TemplateCode = templateCode,
+                        TargetType = NotificationConstants.TargetTypes.User,
+                        TargetUserId = accountId,
+                        Parameters = new Dictionary<string, string>
+                        {
+                            { "orderCode", orderCode },
+                            { "status", statusName }
+                        },
+                        Payload = payload
+                    },
+                    createdByAccountId: 0, // System account
+                    isSystemGenerated: true // Bypass admin restrictions
+                );
+
+                _logger.LogInformation("Sent {TemplateCode} notification for Order {OrderId} to Account {AccountId}",
+                    templateCode, orderId, accountId);
+            }
+            catch (Exception ex)
+            {
+                // Log but don't throw - notification failure shouldn't affect order processing
+                _logger.LogError(ex, "Failed to send order status notification for Order {OrderId}", orderId);
+            }
+        }
+
+        /// <summary>
+        /// Send payment notification to customer (system-generated)
+        /// </summary>
+        private async Task SendPaymentNotificationAsync(int orderId, int accountId, string orderCode, bool isSuccess, string paymentMethod, decimal amount)
+        {
+            try
+            {
+                var templateCode = isSuccess
+                    ? NotificationConstants.SystemOnlyTemplateCodes.PaymentSuccess
+                    : NotificationConstants.SystemOnlyTemplateCodes.PaymentFailed;
+
+                var payload = JsonSerializer.Serialize(new
+                {
+                    type = "payment",
+                    orderId = orderId,
+                    orderCode = orderCode,
+                    status = isSuccess ? "success" : "failed",
+                    paymentMethod = paymentMethod,
+                    amount = amount,
+                    link = $"/orders/{orderId}"
+                });
+
+                await _notificationService.SendNotificationAsync(
+                    new SendNotificationRequest
+                    {
+                        TemplateCode = templateCode,
+                        TargetType = NotificationConstants.TargetTypes.User,
+                        TargetUserId = accountId,
+                        Parameters = new Dictionary<string, string>
+                        {
+                            { "orderCode", orderCode },
+                            { "amount", amount.ToString("N0") },
+                            { "paymentMethod", paymentMethod }
+                        },
+                        Payload = payload
+                    },
+                    createdByAccountId: 0, // System account
+                    isSystemGenerated: true // Bypass admin restrictions
+                );
+
+                _logger.LogInformation("Sent {TemplateCode} notification for Order {OrderId} to Account {AccountId}",
+                    templateCode, orderId, accountId);
+            }
+            catch (Exception ex)
+            {
+                // Log but don't throw - notification failure shouldn't affect payment processing
+                _logger.LogError(ex, "Failed to send payment notification for Order {OrderId}", orderId);
+            }
         }
 
         #endregion

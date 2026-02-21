@@ -1,6 +1,6 @@
 using BLL.DTOs;
 using BLL.DTOs.Notifications;
-using BLL.Interfaces;
+using BLL.Interfaces.Notification;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -11,14 +11,17 @@ namespace PRN232_LorKingDom.Controllers.Customer
     [ApiController]
     public class CNotificationController : ControllerBase
     {
-        private readonly INotificationService _notificationService;
+        private readonly INotificationQueryService _queryService;
+        private readonly INotificationCommandService _commandService;
         private readonly ILogger<CNotificationController> _logger;
 
         public CNotificationController(
-            INotificationService notificationService,
+            INotificationQueryService queryService,
+            INotificationCommandService commandService,
             ILogger<CNotificationController> logger)
         {
-            _notificationService = notificationService;
+            _queryService = queryService;
+            _commandService = commandService;
             _logger = logger;
         }
 
@@ -41,18 +44,17 @@ namespace PRN232_LorKingDom.Controllers.Customer
         }
 
         /// <summary>
-        /// Get notifications for the current user
+        /// Get notifications for the current user with filtering and pagination
         /// </summary>
         [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetNotifications(
-            [FromQuery] string? status = null,
-            [FromQuery] int limit = 50)
+            [FromQuery] UserNotificationQuery query)
         {
             var accountId = GetAccountId();
             if (accountId == null) return UnauthorizedResponse();
 
-            var result = await _notificationService.GetUserNotificationsAsync(accountId.Value, status, limit);
+            var result = await _queryService.GetUserNotificationsAsync(accountId.Value, query);
             return StatusCode(result.Status, result);
         }
 
@@ -66,7 +68,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             var accountId = GetAccountId();
             if (accountId == null) return UnauthorizedResponse();
 
-            var result = await _notificationService.GetUnreadCountAsync(accountId.Value);
+            var result = await _queryService.GetUnreadCountAsync(accountId.Value);
             return StatusCode(result.Status, result);
         }
 
@@ -80,7 +82,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             var accountId = GetAccountId();
             if (accountId == null) return UnauthorizedResponse();
 
-            var result = await _notificationService.MarkAsReadAsync(id, accountId.Value);
+            var result = await _commandService.MarkAsReadAsync(id, accountId.Value);
             return StatusCode(result.Status, result);
         }
 
@@ -94,7 +96,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             var accountId = GetAccountId();
             if (accountId == null) return UnauthorizedResponse();
 
-            var result = await _notificationService.MarkAllAsReadAsync(accountId.Value);
+            var result = await _commandService.MarkAllAsReadAsync(accountId.Value);
             return StatusCode(result.Status, result);
         }
 
@@ -108,7 +110,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             var accountId = GetAccountId();
             if (accountId == null) return UnauthorizedResponse();
 
-            var result = await _notificationService.DeleteDeliveryAsync(id, accountId.Value);
+            var result = await _commandService.DeleteDeliveryAsync(id, accountId.Value);
             return StatusCode(result.Status, result);
         }
     }

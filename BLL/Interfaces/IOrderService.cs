@@ -1,5 +1,6 @@
 using BLL.DTOs;
 using BLL.DTOs.Orders;
+using BLL.DTOs.Shipping;
 
 namespace BLL.Interfaces
 {
@@ -14,6 +15,10 @@ namespace BLL.Interfaces
         Task<ApiResponse<PagedResult<OrderDto>>> GetMyOrdersAsync(int accountId, int pageNumber = 1, int pageSize = 10, string? statusFilter = null);
         Task<ApiResponse<PagedResult<OrderDto>>> GetAllOrdersAsync(int pageNumber = 1, int pageSize = 10, string? statusFilter = null);
         Task<ApiResponse<object>> CancelOrderAsync(int orderId, int accountId, string? reason = null);
+
+        // Shipping Management
+        Task<ApiResponse<CreateShippingOrderResponse>> CreateShippingOrderAsync(CreateShippingOrderRequest request, int adminId);
+        Task<ApiResponse<object>> HandleShippingWebhookAsync(string provider, GHNWebhookRequest webhookData);
 
         // Order Status Management (Admin)
         Task<ApiResponse<OrderDto>> UpdateOrderStatusAsync(int orderId, UpdateOrderStatusRequest request, int adminId);

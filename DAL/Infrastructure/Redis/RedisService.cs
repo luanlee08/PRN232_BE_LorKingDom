@@ -7,40 +7,102 @@ namespace DAL.Infrastructure.Redis
     public class RedisService : IRedisService
     {
         private readonly IConnectionMultiplexer _redis;
-        private readonly IDatabase _database;
+        private IDatabase? _database;
 
         public RedisService(IConnectionMultiplexer redis)
         {
             _redis = redis;
-            _database = _redis.GetDatabase();
+            try
+            {
+                if (_redis.IsConnected)
+                {
+                    _database = _redis.GetDatabase();
+                }
+            }
+            catch
+            {
+                _database = null; // Redis unavailable
+            }
+        }
+
+        private bool IsRedisAvailable()
+        {
+            try
+            {
+                if (_database == null && _redis.IsConnected)
+                {
+                    _database = _redis.GetDatabase();
+                }
+                return _database != null && _redis.IsConnected;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<bool> SetAsync(string key, string value, TimeSpan? expiry = null)
         {
-            if (expiry.HasValue)
+            if (!IsRedisAvailable()) return false;
+
+            try
             {
-                return await _database.StringSetAsync(key, value, expiry.Value);
+                if (expiry.HasValue)
+                {
+                    return await _database!.StringSetAsync(key, value, expiry.Value);
+                }
+                else
+                {
+                    return await _database!.StringSetAsync(key, value);
+                }
             }
-            else
+            catch
             {
-                return await _database.StringSetAsync(key, value);
+                return false;
             }
         }
 
         public async Task<string?> GetAsync(string key)
         {
-            var value = await _database.StringGetAsync(key);
-            return value.HasValue ? value.ToString() : null;
+            if (!IsRedisAvailable()) return null;
+
+            try
+            {
+                var value = await _database!.StringGetAsync(key);
+                return value.HasValue ? value.ToString() : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<bool> DeleteAsync(string key)
         {
-            return await _database.KeyDeleteAsync(key);
+            if (!IsRedisAvailable()) return false;
+
+            try
+            {
+                return await _database!.KeyDeleteAsync(key);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<bool> ExistsAsync(string key)
         {
-            return await _database.KeyExistsAsync(key);
+            if (!IsRedisAvailable()) return false;
+
+            try
+            {
+                return await _database!.KeyExistsAsync(key);
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

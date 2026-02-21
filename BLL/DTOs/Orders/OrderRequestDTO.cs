@@ -2,6 +2,7 @@
 {
     public class CreateOrderRequest
     {
+        public int AccountId { get; set; } // Will be set by controller from JWT
         public int? VoucherId { get; set; }
         public string PaymentMethod { get; set; } = null!; // "COD", "Wallet", "VNPay", "MoMo"
 
@@ -10,9 +11,19 @@
         public string? ShippingName { get; set; }
         public string? ShippingPhone { get; set; }
         public string? ShippingAddressLine { get; set; }
+
+        // Text names (for display)
         public string? ShippingCity { get; set; }
+        public string? ShippingDistrict { get; set; }
         public string? ShippingWard { get; set; }
+
+        // GHN Master Data IDs (for shipping)
+        public int? ShippingProvinceId { get; set; }
+        public int? ShippingDistrictId { get; set; }
+        public string? ShippingWardCode { get; set; }
+
         public string ShippingMethod { get; set; } = "Standard"; // "Express", "Standard", "Economy"
+        public decimal? ShippingFee { get; set; } // Optional: Use client-calculated fee from GHN API
 
         // Payment Split (for hybrid payment)
         public decimal PaidByWalletAmount { get; set; } = 0;

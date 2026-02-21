@@ -15,6 +15,7 @@ namespace BLL.DTOs.Orders
         public string? ShippingPhone { get; set; }
         public string? ShippingAddressLine { get; set; }
         public string? ShippingCity { get; set; }
+        public string? ShippingDistrict { get; set; }
         public string? ShippingWard { get; set; }
         public string? ShippingMethod { get; set; }
         public decimal ShippingFee { get; set; }
@@ -92,6 +93,11 @@ namespace BLL.DTOs.Orders
         public DateTime? ApprovedAt { get; set; }
         public DateTime? ProcessedAt { get; set; }
         public string? ApprovedByName { get; set; }
+    }
+
+    // Alias for RefundDto
+    public class OrderRefundDto : RefundDto
+    {
     }
 
     public class CreateOrderResponse

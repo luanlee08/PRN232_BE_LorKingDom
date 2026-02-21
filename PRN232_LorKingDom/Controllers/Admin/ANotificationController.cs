@@ -1,6 +1,7 @@
 ﻿using BLL.DTOs;
 using BLL.DTOs.Notifications;
-using BLL.Interfaces;
+using BLL.Interfaces.Notification;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -8,17 +9,20 @@ namespace PRN232_LorKingDom.Controllers.Admin
 {
     [Route("api/admin/notifications")]
     [ApiController]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public class ANotificationController : ControllerBase
     {
-        private readonly INotificationService _notificationService;
+        private readonly INotificationQueryService _queryService;
+        private readonly INotificationCommandService _commandService;
         private readonly ILogger<ANotificationController> _logger;
 
         public ANotificationController(
-            INotificationService notificationService,
+            INotificationQueryService queryService,
+            INotificationCommandService commandService,
             ILogger<ANotificationController> logger)
         {
-            _notificationService = notificationService;
+            _queryService = queryService;
+            _commandService = commandService;
             _logger = logger;
         }
 
@@ -28,7 +32,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PagedResult<DeliveryResponse>>>> GetNotifications([FromQuery] DeliveryQuery query)
         {
-            var result = await _notificationService.GetDeliveriesAsync(query);
+            var result = await _queryService.GetDeliveriesAsync(query);
             return StatusCode(result.Status, result);
         }
 
@@ -38,7 +42,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<DeliveryResponse>>> GetNotificationById(long id)
         {
-            var result = await _notificationService.GetDeliveryByIdAsync(id);
+            var result = await _queryService.GetDeliveryByIdAsync(id);
             return StatusCode(result.Status, result);
         }
 
@@ -60,7 +64,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
                 });
             }
 
-            var result = await _notificationService.SendNotificationAsync(request, createdBy);
+            var result = await _commandService.SendNotificationAsync(request, createdBy);
             return StatusCode(result.Status, result);
         }
 
@@ -70,10 +74,8 @@ namespace PRN232_LorKingDom.Controllers.Admin
         [HttpGet("stats")]
         public async Task<ActionResult<ApiResponse<DeliveryStatsResponse>>> GetStats()
         {
-            var result = await _notificationService.GetStatsAsync();
+            var result = await _queryService.GetStatsAsync();
             return StatusCode(result.Status, result);
         }
     }
 }
-
-

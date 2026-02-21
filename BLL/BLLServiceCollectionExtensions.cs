@@ -1,10 +1,17 @@
-﻿using BLL.Interfaces;
+﻿using BLL.Helpers.Notification;
+using BLL.Helpers.Order;
+using BLL.Interfaces;
 using BLL.Interfaces.Moderation;
+using BLL.Interfaces.Notification;
+using BLL.Interfaces.Order;
 using BLL.Services;
 using BLL.Services.Moderation;
+using BLL.Services.Notification;
+using BLL.Services.Order;
 using BLL.Validators.Address;
 using BLL.Validators.Auth;
 using BLL.Validators.SuperCategory;
+using BLL.Worker;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,7 +43,21 @@ namespace BLL
             // Cart
             services.AddScoped<ICartService, CartServices>();
 
-            // Order
+            // Order - New CQRS pattern services
+            services.AddScoped<IOrderQueryService, OrderQueryService>();
+            services.AddScoped<IOrderCommandService, OrderCommandService>();
+            services.AddScoped<IOrderPaymentService, OrderPaymentService>();
+            services.AddScoped<IOrderWebhookService, OrderWebhookService>();
+            services.AddScoped<IOrderRefundService, OrderRefundService>();
+            services.AddScoped<IOrderExportService, OrderExportService>();
+
+            // Order Helpers
+            services.AddScoped<OrderMappingHelper>();
+            services.AddScoped<OrderCalculationHelper>();
+            services.AddScoped<OrderValidationHelper>();
+            services.AddScoped<PaymentGatewayHelper>();
+
+            // Order - Keep old service for backward compatibility (will be deprecated)
             services.AddScoped<IOrderService, OrderService>();
 
             // Payment Gateways
@@ -45,8 +66,8 @@ namespace BLL
             services.AddScoped<ISepayService, SepayService>();
 
             // Shipping Providers
-            services.AddScoped<IGoShipService, GoShipService>();
             services.AddScoped<IGHNService, GHNService>();
+            services.AddScoped<ILocationService, LocationService>();
 
             // HttpClient for payment & shipping services
             services.AddHttpClient();
@@ -69,7 +90,18 @@ namespace BLL
             services.AddScoped<IModerationLayer1Service, ModerationLayer1Service>();
             services.AddScoped<IModerationLayer2Service, ModerationLayer2Service>();
 
-            // Notification
+            // Notification - New CQRS pattern services
+            services.AddScoped<INotificationQueryService, NotificationQueryService>();
+            services.AddScoped<INotificationCommandService, NotificationCommandService>();
+            services.AddScoped<INotificationSchedulerService, NotificationSchedulerService>();
+
+            // Notification Helpers
+            services.AddScoped<NotificationHelper>();
+            services.AddScoped<NotificationMapperHelper>();
+            services.AddScoped<NotificationTargetHelper>();
+            services.AddScoped<NotificationContentHelper>();
+
+            // Notification - Keep old service for backward compatibility (will be deprecated)
             services.AddScoped<INotificationService, NotificationService>();
 
             // Template
@@ -77,6 +109,10 @@ namespace BLL
 
             // Order
             services.AddScoped<IOrderService, OrderService>();
+
+            // Workers
+            services.AddScoped<NotificationWorker>();
+            services.AddScoped<ShippingStatusSyncWorker>();
 
             // Đăng ký FluentValidation cho assembly (Đk 1 cái là đủ, mấy cái còn lại ăn theo)
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();

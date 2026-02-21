@@ -23,6 +23,8 @@ public partial class Order
 
     public string? ShippingCity { get; set; }
 
+    public string? ShippingDistrict { get; set; }
+
     public string? ShippingWard { get; set; }
 
     public string? ShippingMethod { get; set; }
