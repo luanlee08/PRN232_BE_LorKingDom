@@ -5,16 +5,35 @@ public class GHNCreateOrderRequest
     public string PaymentTypeId { get; set; } = null!; // 1: Shop/Seller, 2: COD
     public string Note { get; set; } = "";
     public string RequiredNote { get; set; } = "KHONGCHOXEMHANG"; // CHOTHUHANG, CHOXEMHANGKHONGTHU, KHONGCHOXEMHANG
+
+    // Sender/Pickup Information (Required by GHN)
+    public string FromName { get; set; } = null!;
+    public string FromPhone { get; set; } = null!;
+    public string FromAddress { get; set; } = null!;
+    public string FromWardName { get; set; } = null!;
+    public string FromDistrictName { get; set; } = null!;
+    public string FromProvinceName { get; set; } = null!;
+    public int FromDistrictId { get; set; } // REQUIRED - GHN needs this to identify pickup warehouse
+
+    // Return Information
     public string ReturnPhone { get; set; } = null!;
     public string ReturnAddress { get; set; } = null!;
     public string ReturnDistrictId { get; set; } = null!;
     public string ReturnWardCode { get; set; } = null!;
+
     public string ClientOrderCode { get; set; } = null!;
+
+    // Recipient Information
     public string ToName { get; set; } = null!;
     public string ToPhone { get; set; } = null!;
     public string ToAddress { get; set; } = null!;
-    public string ToWardCode { get; set; } = null!;
-    public int ToDistrictId { get; set; }
+    public string ToWardName { get; set; } = "";        // Text name - REQUIRED by GHN docs
+    public string ToDistrictName { get; set; } = "";    // Text name - REQUIRED by GHN docs
+    public string ToProvinceName { get; set; } = "";    // Text name - REQUIRED by GHN docs
+    public string ToWardCode { get; set; } = "";        // Optional but helps accuracy
+    public int ToDistrictId { get; set; }                // Optional but helps accuracy
+
+    // Package Details
     public int CodAmount { get; set; }
     public string Content { get; set; } = null!;
     public int Weight { get; set; }
@@ -23,6 +42,7 @@ public class GHNCreateOrderRequest
     public int Height { get; set; }
     public int ServiceId { get; set; }
     public int ServiceTypeId { get; set; } // 2: Standard Express
+    public int? InsuranceValue { get; set; } // Optional: Insurance value for package
     public GHNItem[] Items { get; set; } = Array.Empty<GHNItem>();
 }
 
@@ -88,4 +108,43 @@ public class GHNService
     public int ServiceId { get; set; }
     public string ShortName { get; set; } = null!;
     public int ServiceTypeId { get; set; }
+}
+
+// Master data DTOs for dynamic province/district lookup
+public class GHNProvinceListResponse
+{
+    public int Code { get; set; }
+    public GHNProvinceData[]? Data { get; set; }
+}
+
+public class GHNProvinceData
+{
+    public int ProvinceId { get; set; }
+    public string ProvinceName { get; set; } = null!;
+}
+
+public class GHNDistrictListResponse
+{
+    public int Code { get; set; }
+    public GHNDistrictData[]? Data { get; set; }
+}
+
+public class GHNDistrictData
+{
+    public int DistrictId { get; set; }
+    public string DistrictName { get; set; } = null!;
+}
+
+// Ward Master Data DTOs
+public class GHNWardListResponse
+{
+    public int Code { get; set; }
+    public GHNWardData[]? Data { get; set; }
+}
+
+public class GHNWardData
+{
+    public string WardCode { get; set; } = null!;
+    public int DistrictId { get; set; }
+    public string WardName { get; set; } = null!;
 }

@@ -16,7 +16,9 @@ namespace DAL.Interface
             int pageSize);
 
         Task<Delivery?> GetDeliveryByIdAsync(long id);
-        Task<List<Delivery>> GetUserDeliveriesAsync(int accountId, string? status, int limit);
+        Task<(List<Delivery> Items, int TotalCount)> GetUserDeliveriesAsync(
+            int accountId, string? status, string? templateCode, string? keyword,
+            DateTime? fromDate, DateTime? toDate, int page, int pageSize);
         Task<int> GetUnreadCountAsync(int accountId);
 
         // Create deliveries

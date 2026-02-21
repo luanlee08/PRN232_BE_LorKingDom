@@ -26,7 +26,13 @@ namespace DAL
                 var configuration = sp.GetRequiredService<IConfiguration>();
                 var redisConnection = configuration.GetConnectionString("Redis")
                     ?? "localhost:6379";
-                return ConnectionMultiplexer.Connect(redisConnection);
+
+                var options = ConfigurationOptions.Parse(redisConnection);
+                options.AbortOnConnectFail = false; // Allow app to start even if Redis is down
+                options.ConnectTimeout = 2000; // 2 seconds timeout
+                options.SyncTimeout = 2000;
+
+                return ConnectionMultiplexer.Connect(options);
             });
             services.AddScoped<IRedisService, RedisService>();
 

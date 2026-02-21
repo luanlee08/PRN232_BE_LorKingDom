@@ -11,7 +11,7 @@ namespace BLL.Interfaces
         Task<ApiResponse<DeliveryStatsResponse>> GetStatsAsync();
 
         // User queries  
-        Task<ApiResponse<List<DeliveryResponse>>> GetUserNotificationsAsync(int accountId, string? status, int limit);
+        Task<ApiResponse<PagedResult<DeliveryResponse>>> GetUserNotificationsAsync(int accountId, UserNotificationQuery query);
         Task<ApiResponse<int>> GetUnreadCountAsync(int accountId);
 
         // Send notifications (creates delivery records)
@@ -28,6 +28,6 @@ namespace BLL.Interfaces
         Task ProcessScheduledNotificationJobAsync(SendNotificationRequest request, int createdBy, int? jobId);
 
         // Review moderation notifications
-        Task SendReviewRejectionNotificationAsync(int reviewId, int accountId, string productName, string reason);
+        Task SendReviewRejectionNotificationAsync(int reviewId, int accountId, string productName, string reason, string templateCode = "REVIEW_REJECTED");
     }
 }

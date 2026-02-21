@@ -203,10 +203,18 @@ namespace PRN232_LorKingDom
             using (var scope = app.Services.CreateScope())
             {
                 var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+                // Legacy notification worker (deprecated)
                 recurringJobManager.AddOrUpdate<NotificationWorker>(
                     "process-scheduled-notifications",
                     worker => worker.ProcessScheduledNotificationsJob(),
                     Cron.Minutely);
+
+                // GHN Shipping Status Sync Worker
+                recurringJobManager.AddOrUpdate<ShippingStatusSyncWorker>(
+                    "sync-ghn-shipping-status",
+                    worker => worker.SyncGHNShippingStatusJob(),
+                    Cron.MinuteInterval(5)); // Run every 5 minutes
             }
 
             app.UseHttpsRedirection();

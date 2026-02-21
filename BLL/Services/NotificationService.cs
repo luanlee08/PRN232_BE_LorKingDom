@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
+using BLL.Helpers.Notification;
 
 namespace BLL.Services
 {
@@ -20,17 +21,21 @@ namespace BLL.Services
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly ILogger<NotificationService> _logger;
 
+
+        private readonly NotificationHelper _notificationHelper;
         public NotificationService(
             INotificationRepository notificationRepo,
             ITemplateRepository templateRepo,
             AspLorKingDomContext context,
             IBackgroundJobClient backgroundJobClient,
-            ILogger<NotificationService> logger)
+            ILogger<NotificationService> logger,
+            NotificationHelper notificationHelper)
         {
             _notificationRepo = notificationRepo;
             _templateRepo = templateRepo;
             _context = context;
             _backgroundJobClient = backgroundJobClient;
+            _notificationHelper = notificationHelper;
             _logger = logger;
         }
 
@@ -110,16 +115,24 @@ namespace BLL.Services
 
         #region User Queries
 
-        public async Task<ApiResponse<List<DeliveryResponse>>> GetUserNotificationsAsync(int accountId, string? status, int limit)
+        public async Task<ApiResponse<PagedResult<DeliveryResponse>>> GetUserNotificationsAsync(int accountId, UserNotificationQuery query)
         {
-            var deliveries = await _notificationRepo.GetUserDeliveriesAsync(accountId, status, limit);
+            var (items, total) = await _notificationRepo.GetUserDeliveriesAsync(
+                accountId, query.Status, query.TemplateCode, query.Keyword,
+                query.FromDate, query.ToDate, query.Page, query.PageSize);
 
-            return new ApiResponse<List<DeliveryResponse>>
+            return new ApiResponse<PagedResult<DeliveryResponse>>
             {
                 Status = 200,
                 StatusMessage = "SUCCESS",
                 Message = "Lấy thông báo của user thành công",
-                Data = deliveries.Select(MapToResponse).ToList()
+                Data = new PagedResult<DeliveryResponse>
+                {
+                    Items = items.Select(MapToResponse).ToList(),
+                    TotalCount = total,
+                    Page = query.Page,
+                    PageSize = query.PageSize
+                }
             };
         }
 
@@ -329,7 +342,7 @@ namespace BLL.Services
         /// <summary>
         /// Send notification to user when their review is rejected
         /// </summary>
-        public async Task SendReviewRejectionNotificationAsync(int reviewId, int accountId, string productName, string reason)
+        public async Task SendReviewRejectionNotificationAsync(int reviewId, int accountId, string productName, string reason, string templateCode = "REVIEW_REJECTED")
         {
             try
             {
@@ -484,8 +497,8 @@ namespace BLL.Services
                     // Replace parameters if provided
                     if (request.Parameters != null && request.Parameters.Any())
                     {
-                        title = ReplaceTemplateParameters(title, request.Parameters);
-                        message = ReplaceTemplateParameters(message, request.Parameters);
+                        title = _notificationHelper.ReplaceTemplateParameters(title, request.Parameters);
+                        message = _notificationHelper.ReplaceTemplateParameters(message, request.Parameters);
                     }
                 }
             }
@@ -530,20 +543,6 @@ namespace BLL.Services
             return await Task.FromResult(new List<int>());
         }
 
-        private string ReplaceTemplateParameters(string text, Dictionary<string, string> parameters)
-        {
-            if (parameters == null || !parameters.Any())
-                return text;
-
-            foreach (var param in parameters)
-            {
-                // Support both {{key}} and {key} formats
-                text = text.Replace($"{{{{{param.Key}}}}}", param.Value);
-                text = text.Replace($"{{{param.Key}}}", param.Value);
-            }
-
-            return text;
-        }
 
         private DeliveryResponse MapToResponse(Delivery delivery)
         {

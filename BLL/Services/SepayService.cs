@@ -28,16 +28,22 @@ public class SepayService : ISepayService
     {
         // 🔧 TEMPORARY: Mock response for testing since test credentials may not work
         // TODO: Replace with real Sepay credentials when available
+        Console.WriteLine($"[Sepay] MerchantId: {_merchantId}");
+        Console.WriteLine($"[Sepay] Checking if starts with 'SP-TEST': {_merchantId.StartsWith("SP-TEST")}");
+
         if (_merchantId.StartsWith("SP-TEST"))
         {
-            Console.WriteLine($"[Sepay] Using MOCK response (test credentials detected)");
+            var mockUrl = $"http://localhost:3000/payment/sepay-test?mock=true&order_id={request.OrderId}&amount={request.Amount:F0}";
+            Console.WriteLine($"[Sepay] ✅ Using MOCK response - Redirect to: {mockUrl}");
             return new SepayResponse
             {
-                PaymentUrl = $"https://my.sepay.vn/payment?mock=true&order_id={request.OrderId}&amount={request.Amount}",
+                PaymentUrl = mockUrl,
                 QRCodeUrl = "https://via.placeholder.com/300x300?text=QR+Code",
                 TransactionId = $"MOCK-{Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper()}"
             };
         }
+
+        Console.WriteLine($"[Sepay] ⚠️ Using REAL API (production credentials detected)");
 
         // Tạo raw data cho signature
         var rawData = $"{_merchantId}|{request.OrderId}|{request.Amount:F0}|{request.OrderInfo}|{request.ReturnUrl}";

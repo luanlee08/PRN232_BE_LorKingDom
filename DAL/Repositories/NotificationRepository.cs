@@ -81,7 +81,9 @@ namespace DAL.Repositories
                 .FirstOrDefaultAsync(d => d.DeliveryId == id);
         }
 
-        public async Task<List<Delivery>> GetUserDeliveriesAsync(int accountId, string? status, int limit)
+        public async Task<(List<Delivery> Items, int TotalCount)> GetUserDeliveriesAsync(
+            int accountId, string? status, string? templateCode, string? keyword,
+            DateTime? fromDate, DateTime? toDate, int page, int pageSize)
         {
             var query = _context.Deliveries
                 .Where(d => d.AccountId == accountId);
@@ -91,10 +93,37 @@ namespace DAL.Repositories
                 query = query.Where(d => d.Status == status);
             }
 
-            return await query
+            if (!string.IsNullOrWhiteSpace(templateCode))
+            {
+                query = query.Where(d => d.TemplateCode == templateCode);
+            }
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(d =>
+                    d.Title.Contains(keyword) ||
+                    d.Message.Contains(keyword));
+            }
+
+            if (fromDate.HasValue)
+            {
+                query = query.Where(d => d.CreatedAt >= fromDate.Value);
+            }
+
+            if (toDate.HasValue)
+            {
+                query = query.Where(d => d.CreatedAt <= toDate.Value);
+            }
+
+            var total = await query.CountAsync();
+
+            var items = await query
                 .OrderByDescending(d => d.CreatedAt)
-                .Take(limit)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            return (items, total);
         }
 
         public async Task<int> GetUnreadCountAsync(int accountId)
