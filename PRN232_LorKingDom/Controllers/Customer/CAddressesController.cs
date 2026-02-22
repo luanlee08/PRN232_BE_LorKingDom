@@ -60,7 +60,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
         }
 
         // POST api/addresses
-        //[Authorize]
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] AddressRequestDTO AddressDTO)
         {
@@ -107,6 +107,26 @@ namespace PRN232_LorKingDom.Controllers.Customer
             }
 
             var result = await _services.UpdateAsync(updateDTO, accountId);
+            return StatusCode(result.Status, result);
+        }
+
+        // PATCH api/addresses/{id}/set-default
+        [Authorize]
+        [HttpPatch("{id}/set-default")]
+        public async Task<IActionResult> SetDefault(int id)
+        {
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Status = 401,
+                    StatusMessage = "UNAUTHORIZED",
+                    Message = "Không thể xác thực người dùng"
+                });
+            }
+
+            var result = await _services.SetDefaultAsync(id, accountId);
             return StatusCode(result.Status, result);
         }
 

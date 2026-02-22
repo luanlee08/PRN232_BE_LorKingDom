@@ -25,8 +25,7 @@ namespace DAL.Repositories
             int pageSize)
         {
             var query = _context.Categories
-                .Where(x => !x.IsDeleted);
-
+                                .AsQueryable();
             if (!string.IsNullOrWhiteSpace(keyword))
                 query = query.Where(x =>
                     x.CategoryName.Contains(keyword));

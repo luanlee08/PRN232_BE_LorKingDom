@@ -3,6 +3,7 @@ using BLL.DTOs.Moderation;
 using BLL.DTOs.ReviewProduct;
 using BLL.Interfaces;
 using BLL.Interfaces.Moderation;
+using BLL.Interfaces.Notification;
 using DAL.Infrastructure;
 using DAL.Interface;
 using DAL.Models;
@@ -20,7 +21,7 @@ namespace BLL.Services
         private readonly IReviewModerationLogRepository _moderationLogRepo;
         private readonly IReviewModerationService _moderationService;
         private readonly ICloudinaryService _cloudinaryService;
-        private readonly INotificationService _notificationService;
+        private readonly INotificationCommandService _notificationCommandService;
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly IUnitOfWork _unitOfWork;
 
@@ -32,7 +33,7 @@ namespace BLL.Services
             IReviewModerationLogRepository moderationLogRepo,
             IReviewModerationService moderationService,
             ICloudinaryService cloudinaryService,
-            INotificationService notificationService,
+            INotificationCommandService notificationCommandService,
             IBackgroundJobClient backgroundJobClient,
             IUnitOfWork unitOfWork)
         {
@@ -43,7 +44,7 @@ namespace BLL.Services
             _moderationLogRepo = moderationLogRepo;
             _moderationService = moderationService;
             _cloudinaryService = cloudinaryService;
-            _notificationService = notificationService;
+            _notificationCommandService = notificationCommandService;
             _backgroundJobClient = backgroundJobClient;
             _unitOfWork = unitOfWork;
         }
@@ -172,7 +173,7 @@ namespace BLL.Services
                     var productName = review.Product?.ProductName ?? "sản phẩm";
                     var reason = moderationResult.Decision.Reason ?? "Vi phạm chính sách nội dung";
 
-                    await _notificationService.SendReviewRejectionNotificationAsync(
+                    await _notificationCommandService.SendReviewRejectionNotificationAsync(
                         reviewId,
                         review.AccountId,
                         productName,

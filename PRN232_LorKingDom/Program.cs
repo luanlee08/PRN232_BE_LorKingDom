@@ -77,7 +77,10 @@ namespace PRN232_LorKingDom
                 });
             });
             builder.Services.AddHttpClient();
+            builder.Services.AddHttpContextAccessor();
 
+            // Cloudinary - Dùng cho ReviewProductService và các chức năng khác
+            // ProfileService đã chuyển sang lưu local
             builder.Services.AddSingleton<Cloudinary>(sp =>
             {
                 var config = sp.GetRequiredService<IConfiguration>();
@@ -182,9 +185,6 @@ namespace PRN232_LorKingDom
                 });
             });
 
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
@@ -203,10 +203,18 @@ namespace PRN232_LorKingDom
             using (var scope = app.Services.CreateScope())
             {
                 var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+                // Legacy notification worker (deprecated)
                 recurringJobManager.AddOrUpdate<NotificationWorker>(
                     "process-scheduled-notifications",
                     worker => worker.ProcessScheduledNotificationsJob(),
                     Cron.Minutely);
+
+                // GHN Shipping Status Sync Worker
+                recurringJobManager.AddOrUpdate<ShippingStatusSyncWorker>(
+                    "sync-ghn-shipping-status",
+                    worker => worker.SyncGHNShippingStatusJob(),
+                    Cron.MinuteInterval(5)); // Run every 5 minutes
             }
 
             app.UseHttpsRedirection();

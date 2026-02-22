@@ -36,9 +36,20 @@ namespace BLL.Services
             var address = new Address
             {
                 AccountId = accountId,
+                RecipientName = request.RecipientName,
+                PhoneNumber = request.PhoneNumber,
                 AddressLine = request.AddressLine,
+
+                // Text names (for display)
                 City = request.City,
+                District = request.District,
                 Ward = request.Ward,
+
+                // GHN IDs (for shipping)
+                ProvinceId = request.ProvinceId,
+                DistrictId = request.DistrictId,
+                WardCode = request.WardCode,
+
                 IsDefault = isDefault,
                 IsDeleted = false,
                 CreatedAt = DateTime.UtcNow
@@ -50,9 +61,20 @@ namespace BLL.Services
             {
                 AddressId = address.AddressId, // EF đã fill
                 AccountId = address.AccountId,
+                RecipientName = address.RecipientName,
+                PhoneNumber = address.PhoneNumber,
                 AddressLine = address.AddressLine,
+
+                // Text names
                 City = address.City,
+                District = address.District,
                 Ward = address.Ward,
+
+                // GHN IDs
+                ProvinceId = address.ProvinceId,
+                DistrictId = address.DistrictId,
+                WardCode = address.WardCode,
+
                 IsDefault = address.IsDefault,
                 CreatedAt = address.CreatedAt
             };
@@ -102,9 +124,20 @@ namespace BLL.Services
             }
 
             // Update properties
+            existingAddress.RecipientName = request.RecipientName;
+            existingAddress.PhoneNumber = request.PhoneNumber;
             existingAddress.AddressLine = request.AddressLine;
+
+            // Text names
             existingAddress.City = request.City;
+            existingAddress.District = request.District;
             existingAddress.Ward = request.Ward;
+
+            // GHN IDs
+            existingAddress.ProvinceId = request.ProvinceId;
+            existingAddress.DistrictId = request.DistrictId;
+            existingAddress.WardCode = request.WardCode;
+
             existingAddress.IsDefault = request.IsDefault;
             existingAddress.UpdatedAt = DateTime.UtcNow;
 
@@ -114,9 +147,20 @@ namespace BLL.Services
             {
                 AddressId = existingAddress.AddressId,
                 AccountId = existingAddress.AccountId,
+                RecipientName = existingAddress.RecipientName,
+                PhoneNumber = existingAddress.PhoneNumber,
                 AddressLine = existingAddress.AddressLine,
+
+                // Text names
                 City = existingAddress.City,
+                District = existingAddress.District,
                 Ward = existingAddress.Ward,
+
+                // GHN IDs
+                ProvinceId = existingAddress.ProvinceId,
+                DistrictId = existingAddress.DistrictId,
+                WardCode = existingAddress.WardCode,
+
                 IsDefault = existingAddress.IsDefault,
                 CreatedAt = existingAddress.CreatedAt,
                 UpdatedAt = existingAddress.UpdatedAt
@@ -140,9 +184,20 @@ namespace BLL.Services
             {
                 AddressId = a.AddressId,
                 AccountId = a.AccountId,
+                RecipientName = a.RecipientName,
+                PhoneNumber = a.PhoneNumber,
                 AddressLine = a.AddressLine,
+
+                // Text names
                 City = a.City,
+                District = a.District,
                 Ward = a.Ward,
+
+                // GHN IDs
+                ProvinceId = a.ProvinceId,
+                DistrictId = a.DistrictId,
+                WardCode = a.WardCode,
+
                 IsDefault = a.IsDefault,
                 CreatedAt = a.CreatedAt,
                 UpdatedAt = a.UpdatedAt
@@ -188,9 +243,20 @@ namespace BLL.Services
             {
                 AddressId = address.AddressId,
                 AccountId = address.AccountId,
+                RecipientName = address.RecipientName,
+                PhoneNumber = address.PhoneNumber,
                 AddressLine = address.AddressLine,
+
+                // Text names
                 City = address.City,
+                District = address.District,
                 Ward = address.Ward,
+
+                // GHN IDs
+                ProvinceId = address.ProvinceId,
+                DistrictId = address.DistrictId,
+                WardCode = address.WardCode,
+
                 IsDefault = address.IsDefault,
                 CreatedAt = address.CreatedAt,
                 UpdatedAt = address.UpdatedAt
@@ -202,6 +268,65 @@ namespace BLL.Services
                 StatusMessage = "SUCCESS",
                 Message = "Lấy thông tin địa chỉ thành công.",
                 Data = addressDto
+            };
+        }
+
+        public async Task<ApiResponse<AddressResponseDTO>> SetDefaultAsync(int addressId, int accountId)
+        {
+            var address = await _repo.GetByIdAsync(addressId);
+
+            if (address == null || address.IsDeleted)
+            {
+                return new ApiResponse<AddressResponseDTO>
+                {
+                    Status = 404,
+                    StatusMessage = "FAILED",
+                    Message = "Không tìm thấy địa chỉ",
+                    Data = null
+                };
+            }
+
+            if (address.AccountId != accountId)
+            {
+                return new ApiResponse<AddressResponseDTO>
+                {
+                    Status = 403,
+                    StatusMessage = "FORBIDDEN",
+                    Message = "Bạn không có quyền thay đổi địa chỉ này",
+                    Data = null
+                };
+            }
+
+            // Unset all current defaults, then set this one
+            await _repo.UnsetDefaultAddressesAsync(accountId);
+            address.IsDefault = true;
+            address.UpdatedAt = DateTime.UtcNow;
+            await _repo.UpdateAsync(address);
+
+            var responseDto = new AddressResponseDTO
+            {
+                AddressId = address.AddressId,
+                AccountId = address.AccountId,
+                RecipientName = address.RecipientName,
+                PhoneNumber = address.PhoneNumber,
+                AddressLine = address.AddressLine,
+                City = address.City,
+                District = address.District,
+                Ward = address.Ward,
+                ProvinceId = address.ProvinceId,
+                DistrictId = address.DistrictId,
+                WardCode = address.WardCode,
+                IsDefault = address.IsDefault,
+                CreatedAt = address.CreatedAt,
+                UpdatedAt = address.UpdatedAt
+            };
+
+            return new ApiResponse<AddressResponseDTO>
+            {
+                Status = 200,
+                StatusMessage = "SUCCESS",
+                Message = "Đã đặt làm địa chỉ mặc định.",
+                Data = responseDto
             };
         }
 

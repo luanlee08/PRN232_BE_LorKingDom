@@ -157,6 +157,15 @@ public partial class AspLorKingDomContext : DbContext
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
             entity.Property(e => e.Ward).HasMaxLength(100);
 
+            // GHN integration fields
+            entity.Property(e => e.ProvinceId);
+            entity.Property(e => e.DistrictId);
+            entity.Property(e => e.WardCode).HasMaxLength(20).IsUnicode(false);
+
+            // Recipient information fields
+            entity.Property(e => e.RecipientName).HasMaxLength(100);
+            entity.Property(e => e.PhoneNumber).HasMaxLength(15).IsUnicode(false);
+
             entity.HasOne(d => d.Account).WithMany(p => p.Addresses)
                 .HasForeignKey(d => d.AccountId)
                 .HasConstraintName("FK_Addresses_Accounts");
