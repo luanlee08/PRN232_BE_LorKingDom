@@ -15,7 +15,11 @@ public partial class Voucher
 
     public string VoucherCode { get; set; } = null!;
 
+    public string DiscountType { get; set; } = null!;
+
     public decimal DiscountValue { get; set; }
+
+    public decimal? MaxDiscountAmount { get; set; }
 
     public decimal? MinOrderAmount { get; set; }
 
