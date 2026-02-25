@@ -43,6 +43,9 @@ namespace BLL
             // Address
             services.AddScoped<IAddressServices, AddressServices>();
 
+            // Blog 
+            services.AddScoped<IReviewBlogService, ReviewBlogService>();
+
             // Cart
             services.AddScoped<ICartService, CartServices>();
 
