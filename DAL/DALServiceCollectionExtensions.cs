@@ -85,6 +85,10 @@ namespace DAL
             // Order
             services.AddScoped<IOrderRepository, OrderRepository>();
 
+            //Blogs
+            // Blogs
+            services.AddScoped<IBlogRepository, BlogRepository>();
+            services.AddScoped<IBlogCategoryRepository, BlogCategoryRepository>();
             return services;
         }
     }
