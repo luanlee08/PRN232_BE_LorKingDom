@@ -121,6 +121,10 @@ namespace BLL
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
             services.AddValidatorsFromAssemblyContaining<RegisterValidator>();
 
+            // Blogs
+            // Blog
+            services.AddScoped<IBlogCategoryService, BlogCategoryService>();
+            services.AddScoped<IBlogService, BlogService>();
             return services;
         }
     }
