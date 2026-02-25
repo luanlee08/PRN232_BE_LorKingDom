@@ -250,16 +250,20 @@ namespace BLL.Services
                         };
                     }
 
-                    // Calculate discount based on voucher type
-                    var voucherType = await _context.VoucherTypes.FindAsync(voucher.VoucherTypeId);
-                    if (voucherType?.VoucherTypeName == "Percentage")
+                    // Calculate discount based on DiscountType (Fixed / Percentage)
+                    // VoucherType stays as order vs shipping — handled separately
+                    decimal rawDiscount;
+                    if (voucher.DiscountType == "Percentage")
                     {
-                        discount = subtotal * voucher.DiscountValue / 100;
+                        rawDiscount = subtotal * voucher.DiscountValue / 100;
+                        if (voucher.MaxDiscountAmount.HasValue && rawDiscount > voucher.MaxDiscountAmount.Value)
+                            rawDiscount = voucher.MaxDiscountAmount.Value;
                     }
-                    else if (voucherType?.VoucherTypeName == "Fixed")
+                    else
                     {
-                        discount = voucher.DiscountValue;
+                        rawDiscount = voucher.DiscountValue;
                     }
+                    discount = rawDiscount;
                 }
 
                 // 4. Calculate shipping fee

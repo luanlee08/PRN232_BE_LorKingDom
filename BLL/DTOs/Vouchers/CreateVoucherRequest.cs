@@ -5,7 +5,9 @@
         public int VoucherTypeId { get; set; }
         public int? CreateBy { get; set; }
         public string VoucherCode { get; set; }
+        public string DiscountType { get; set; } // "Fixed" | "Percentage"
         public decimal DiscountValue { get; set; }
+        public decimal? MaxDiscountAmount { get; set; }
         public decimal? MinOrderAmount { get; set; }
         public int? UsageLimitPerUser { get; set; }
         public bool IsStackable { get; set; }
