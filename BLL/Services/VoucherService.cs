@@ -99,7 +99,9 @@ namespace BLL.Services
                 VoucherTypeId = request.VoucherTypeId,
                 CreateBy = request.CreateBy,
                 VoucherCode = request.VoucherCode,
+                DiscountType = request.DiscountType,
                 DiscountValue = request.DiscountValue,
+                MaxDiscountAmount = request.MaxDiscountAmount,
                 MinOrderAmount = request.MinOrderAmount,
                 UsageLimitPerUser = request.UsageLimitPerUser,
                 IsStackable = request.IsStackable,
@@ -150,6 +152,12 @@ namespace BLL.Services
             if (request.DiscountValue.HasValue)
                 voucher.DiscountValue = request.DiscountValue.Value;
 
+            if (!string.IsNullOrEmpty(request.DiscountType))
+                voucher.DiscountType = request.DiscountType;
+
+            if (request.MaxDiscountAmount.HasValue)
+                voucher.MaxDiscountAmount = request.MaxDiscountAmount;
+
             if (request.MinOrderAmount.HasValue)
                 voucher.MinOrderAmount = request.MinOrderAmount;
 
@@ -193,7 +201,9 @@ namespace BLL.Services
                 CreateBy = voucher.CreateBy,
                 CreateByName = voucher.CreateByNavigation?.AccountName,
                 VoucherCode = voucher.VoucherCode,
+                DiscountType = voucher.DiscountType,
                 DiscountValue = voucher.DiscountValue,
+                MaxDiscountAmount = voucher.MaxDiscountAmount,
                 MinOrderAmount = voucher.MinOrderAmount,
                 UsageLimitPerUser = voucher.UsageLimitPerUser,
                 IsStackable = voucher.IsStackable,
