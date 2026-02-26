@@ -169,6 +169,15 @@ namespace DAL.Repositories
                 .ToListAsync();
         }
 
+        public async Task<OrderDetail?> GetOrderDetailByIdAsync(int orderDetailId)
+        {
+            return await _context.OrderDetails
+                .Include(od => od.Product)
+                .Include(od => od.Order)
+                    .ThenInclude(o => o.Status)
+                .FirstOrDefaultAsync(od => od.OrderDetailId == orderDetailId && !od.IsDeleted);
+        }
+
         #endregion
 
         #region OrderStatusHistory
@@ -329,6 +338,8 @@ namespace DAL.Repositories
                 .Include(o => o.Status)
                 .Include(o => o.Account)
                 .Include(o => o.OrderDetails.Where(od => !od.IsDeleted))
+                    .ThenInclude(od => od.Product)
+                        .ThenInclude(p => p.ProductImages)
                 .Where(o => !o.IsDeleted);
 
             // Apply filters
@@ -365,7 +376,7 @@ namespace DAL.Repositories
                 "orderid" => sortDesc ? query.OrderByDescending(o => o.OrderId) : query.OrderBy(o => o.OrderId),
                 "shippingname" => sortDesc ? query.OrderByDescending(o => o.ShippingName) : query.OrderBy(o => o.ShippingName),
                 "totalamount" => sortDesc ? query.OrderByDescending(o => o.TotalAmount) : query.OrderBy(o => o.TotalAmount),
-                "createdat" => sortDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt),
+                "createdat" or "orderdate" => sortDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt),
                 _ => sortDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt)
             };
 
@@ -436,7 +447,7 @@ namespace DAL.Repositories
                 "orderid" => sortDesc ? query.OrderByDescending(o => o.OrderId) : query.OrderBy(o => o.OrderId),
                 "shippingname" => sortDesc ? query.OrderByDescending(o => o.ShippingName) : query.OrderBy(o => o.ShippingName),
                 "totalamount" => sortDesc ? query.OrderByDescending(o => o.TotalAmount) : query.OrderBy(o => o.TotalAmount),
-                "createdat" => sortDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt),
+                "createdat" or "orderdate" => sortDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt),
                 _ => sortDesc ? query.OrderByDescending(o => o.CreatedAt) : query.OrderBy(o => o.CreatedAt)
             };
 

@@ -24,6 +24,7 @@ namespace BLL.Services
         private readonly INotificationCommandService _notificationCommandService;
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IOrderRepository _orderRepo;
 
         public ReviewProductService(
             IReviewProductRepository reviewRepo,
@@ -35,7 +36,8 @@ namespace BLL.Services
             ICloudinaryService cloudinaryService,
             INotificationCommandService notificationCommandService,
             IBackgroundJobClient backgroundJobClient,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IOrderRepository orderRepo)
         {
             _reviewRepo = reviewRepo;
             _imageRepo = imageRepo;
@@ -47,6 +49,7 @@ namespace BLL.Services
             _notificationCommandService = notificationCommandService;
             _backgroundJobClient = backgroundJobClient;
             _unitOfWork = unitOfWork;
+            _orderRepo = orderRepo;
         }
 
         // === ADD REVIEW ===
@@ -58,16 +61,58 @@ namespace BLL.Services
                 await _unitOfWork.BeginTransactionAsync();
 
                 // === STEP 1: Validate OrderDetail ===
-                // ...
+                var orderDetail = await _orderRepo.GetOrderDetailByIdAsync(request.OrderDetailId);
+
+                if (orderDetail == null)
+                {
+                    return new ApiResponse<ReviewResponse>
+                    {
+                        Status = 404,
+                        StatusMessage = "NOT_FOUND",
+                        Message = "Không tìm thấy chi tiết đơn hàng"
+                    };
+                }
+
+                if (orderDetail.Order.AccountId != accountId)
+                {
+                    return new ApiResponse<ReviewResponse>
+                    {
+                        Status = 403,
+                        StatusMessage = "FORBIDDEN",
+                        Message = "Bạn không có quyền đánh giá đơn hàng này"
+                    };
+                }
+
+                var allowedStatuses = new[] { "Delivered", "Completed" };
+                if (orderDetail.Order.Status == null || !allowedStatuses.Contains(orderDetail.Order.Status.StatusName))
+                {
+                    return new ApiResponse<ReviewResponse>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = "Chỉ có thể đánh giá sản phẩm sau khi đơn hàng đã được giao"
+                    };
+                }
 
                 // Check đã review chưa
-                // ...
+                var alreadyReviewed = await _reviewRepo.HasReviewedAsync(accountId, request.OrderDetailId);
+                if (alreadyReviewed)
+                {
+                    return new ApiResponse<ReviewResponse>
+                    {
+                        Status = 409,
+                        StatusMessage = "CONFLICT",
+                        Message = "Bạn đã đánh giá sản phẩm này rồi"
+                    };
+                }
+
+                var productId = orderDetail.ProductId;
 
                 // === STEP 2: Upload Images in Parallel ===
                 var imageUrls = new List<string>();
                 if (request.Images?.Any() == true)
                 {
-                    var uploadTasks = request.Images.Select(image => SaveImageAsync(image, 1));
+                    var uploadTasks = request.Images.Select(image => SaveImageAsync(image, productId));
                     imageUrls = (await Task.WhenAll(uploadTasks)).ToList();
                 }
 
@@ -75,7 +120,7 @@ namespace BLL.Services
                 var review = new ReviewProduct
                 {
                     AccountId = accountId,
-                    ProductId = 1,
+                    ProductId = productId,
                     OrderDetailId = request.OrderDetailId,
                     Rating = request.Rating,
                     Comment = request.Comment,
@@ -463,6 +508,8 @@ namespace BLL.Services
                 canEdit = await _reviewRepo.CanEditAsync(review.ReviewProductId, review.AccountId);
             }
 
+            var replies = await _replyRepo.GetByReviewIdAsync(review.ReviewProductId);
+
             return new ReviewResponse
             {
                 ReviewProductId = review.ReviewProductId,
@@ -484,6 +531,16 @@ namespace BLL.Services
                 IsLikedByCurrentUser = isLiked,
                 EditCount = review.EditCount,
                 CanEdit = canEdit,
+                Replies = replies.Select(r => new ReplyResponse
+                {
+                    ReviewProductReplyId = r.ReplyProductId,
+                    ReviewProductId = r.ReviewProductId,
+                    AccountId = r.AccountId,
+                    AccountName = r.Account?.AccountName ?? "Unknown",
+                    AccountImage = r.Account?.Image,
+                    ReplyText = r.Content,
+                    CreatedAt = r.CreatedAt
+                }).ToList(),
                 CreatedAt = review.CreatedAt,
                 UpdatedAt = review.UpdatedAt
             };

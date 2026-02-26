@@ -19,6 +19,7 @@ namespace DAL.Interface
         // OrderDetail
         Task AddOrderDetailAsync(OrderDetail orderDetail);
         Task<IEnumerable<OrderDetail>> GetOrderDetailsByOrderIdAsync(int orderId);
+        Task<OrderDetail?> GetOrderDetailByIdAsync(int orderDetailId);
 
         // OrderStatusHistory
         Task AddOrderStatusHistoryAsync(OrderStatusHistory statusHistory);
