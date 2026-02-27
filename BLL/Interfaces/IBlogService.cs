@@ -27,5 +27,7 @@ namespace BLL.Interfaces
         Task<ApiResponse<BlogDetailResponse>> GetPublicDetailAsync(int blogId);
 
         Task<ApiResponse<List<BlogPublicResponse>>> GetRecentAsync(int limit);
+
+        Task<ApiResponse<List<BlogPublicResponse>>> GetFeaturedAsync(int limit);
     }
 }
