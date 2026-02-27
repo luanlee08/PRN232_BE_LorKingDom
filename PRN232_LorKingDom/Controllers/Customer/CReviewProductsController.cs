@@ -67,18 +67,18 @@ namespace PRN232_LorKingDom.Controllers.Customer
         [HttpPost]
         public async Task<IActionResult> AddReview([FromForm] AddReviewRequest request)
         {
-            //var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            //if (string.IsNullOrEmpty(accountIdClaim))
-            //{
-            //    return Unauthorized(new ApiResponse<object>
-            //    {
-            //        Status = 401,
-            //        StatusMessage = "UNAUTHORIZED",
-            //        Message = "Không thể xác thực người dùng"
-            //    });
-            //}
-
-            var result = await _reviewProductService.AddReviewAsync(request, 4);
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountIdClaim))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Status = 401,
+                    StatusMessage = "UNAUTHORIZED",
+                    Message = "Không thể xác thực người dùng"
+                });
+            }
+            var customerId = Convert.ToInt32(accountIdClaim);
+            var result = await _reviewProductService.AddReviewAsync(request, customerId);
             return StatusCode(result.Status, result);
         }
 
