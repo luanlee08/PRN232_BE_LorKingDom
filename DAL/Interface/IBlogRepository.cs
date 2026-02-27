@@ -25,7 +25,7 @@ namespace DAL.Interface
         Task<BlogPost?> GetPublicByIdAsync(int blogId);
 
         Task<List<BlogPost>> GetRecentAsync(int limit);
-
+        Task<List<BlogPost>> GetFeaturedAsync(int limit);
         Task SaveChangesAsync();
     }
 }

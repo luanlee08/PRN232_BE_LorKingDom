@@ -192,7 +192,8 @@ namespace BLL.Services
                         ? b.BlogContent.Substring(0, 150) + "..."
                         : b.BlogContent,
                     BlogThumbnail = b.BlogThumbnail,
-                    BlogCategory = b.BlogCategories.First().BlogCategoryName,
+                    BlogCategory = b.BlogCategories
+                    .FirstOrDefault()?.BlogCategoryName ?? "—",
                     AuthorEmail = b.Account.Email,
                     CreatedAt = b.CreatedAt
                 }).ToList()
@@ -232,7 +233,8 @@ namespace BLL.Services
                     BlogTitle = blog.BlogTitle,
                     BlogContent = blog.BlogContent,
                     BlogThumbnail = blog.BlogThumbnail,
-                    BlogCategory = blog.BlogCategories.First().BlogCategoryName,
+                    BlogCategory = blog.BlogCategories
+                    .FirstOrDefault()?.BlogCategoryName ?? "—",
                     AuthorEmail = blog.Account.Email,
                     CreatedAt = blog.CreatedAt
                 }
@@ -256,7 +258,8 @@ namespace BLL.Services
                         ? b.BlogContent.Substring(0, 120) + "..."
                         : b.BlogContent,
                     BlogThumbnail = b.BlogThumbnail,
-                    BlogCategory = b.BlogCategories.First().BlogCategoryName,
+                    BlogCategory = b.BlogCategories
+                   .FirstOrDefault()?.BlogCategoryName ?? "—",
                     AuthorEmail = b.Account.Email,
                     CreatedAt = b.CreatedAt
                 }).ToList()
@@ -277,6 +280,31 @@ namespace BLL.Services
             await file.CopyToAsync(stream);
 
             return $"/uploads/blogs/{fileName}";
+        }
+
+        public async Task<ApiResponse<List<BlogPublicResponse>>> GetFeaturedAsync(int limit)
+        {
+            var blogs = await _blogRepo.GetFeaturedAsync(limit);
+
+            return new ApiResponse<List<BlogPublicResponse>>
+            {
+                Status = 200,
+                StatusMessage = "SUCCESS",
+                Message = "Blog nổi bật",
+                Data = blogs.Select(b => new BlogPublicResponse
+                {
+                    BlogPostId = b.BlogPostId,
+                    BlogTitle = b.BlogTitle,
+                    BlogExcerpt = b.BlogContent.Length > 120
+                        ? b.BlogContent.Substring(0, 120) + "..."
+                        : b.BlogContent,
+                    BlogThumbnail = b.BlogThumbnail,
+                    BlogCategory = b.BlogCategories
+                    .FirstOrDefault()?.BlogCategoryName ?? "—",
+                    AuthorEmail = b.Account.Email,
+                    CreatedAt = b.CreatedAt
+                }).ToList()
+            };
         }
     }
 }

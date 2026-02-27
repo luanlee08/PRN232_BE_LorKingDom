@@ -131,6 +131,19 @@ SearchForAdminAsync(string? keyword, int page, int pageSize)
                     !b.IsDeleted)
                 .FirstOrDefaultAsync();
         }
-
+        public async Task<List<BlogPost>> GetFeaturedAsync(int limit)
+        {
+            return await _context.BlogPosts
+                .Include(b => b.Account)
+                .Include(b => b.BlogCategories)
+                .Where(b =>
+                    b.IsPublished &&
+                    !b.IsDeleted &&
+                    b.IsFeatured
+                )
+                .OrderByDescending(b => b.CreatedAt)
+                .Take(limit)
+                .ToListAsync();
+        }
     }
 }

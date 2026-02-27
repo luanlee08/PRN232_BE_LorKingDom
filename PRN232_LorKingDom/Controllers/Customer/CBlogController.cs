@@ -51,5 +51,13 @@ namespace PRN232_LorKingDom.Controllers.Customer
             var result = await _blogService.GetRecentAsync(limit);
             return StatusCode(result.Status, result);
         }
+
+        [HttpGet("featured")]
+        public async Task<IActionResult> GetFeaturedBlogs(
+        [FromQuery] int limit = 5)
+        {
+            var result = await _blogService.GetFeaturedAsync(limit);
+            return StatusCode(result.Status, result);
+        }
     }
 }

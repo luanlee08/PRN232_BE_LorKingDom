@@ -2,6 +2,7 @@ using BLL.DTOs;
 using BLL.DTOs.Orders;
 using BLL.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace PRN232_LorKingDom.Controllers.Admin
 {
@@ -38,20 +39,20 @@ namespace PRN232_LorKingDom.Controllers.Admin
         [HttpPut("{id}/status")]
         public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusRequest request)
         {
-            // Extract admin ID from JWT claims
-            //var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            //if (string.IsNullOrEmpty(accountIdClaim))
-            //{
-            //    return Unauthorized(new ApiResponse<object>
-            //    {
-            //        Status = 401,
-            //        StatusMessage = "UNAUTHORIZED",
-            //        Message = "Không thể xác thực người dùng"
-            //    });
-            //}
+            //Extract admin ID from JWT claims
+            var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountIdClaim))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Status = 401,
+                    StatusMessage = "UNAUTHORIZED",
+                    Message = "Không thể xác thực người dùng"
+                });
+            }
 
-            //var adminId = Convert.ToInt32(accountIdClaim);
-            var result = await _orderService.UpdateOrderStatusAsync(id, request, 1);
+            var adminId = Convert.ToInt32(accountIdClaim);
+            var result = await _orderService.UpdateOrderStatusAsync(id, request, adminId);
             return StatusCode(result.Status, result);
         }
 
