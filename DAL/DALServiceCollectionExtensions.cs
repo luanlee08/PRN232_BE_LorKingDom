@@ -52,7 +52,7 @@ namespace DAL
 
             // Blog
             services.AddScoped<IReviewBlogRepository, ReviewBlogRepository>();
-
+            services.AddScoped<IReviewBlogReactionRepository, ReviewBlogReactionRepository>();
             // Order & Wallet
             services.AddScoped<IOrderRepository, OrderRepository>();
             services.AddScoped<IWalletRepository, WalletRepository>();

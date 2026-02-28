@@ -45,6 +45,7 @@ namespace BLL
 
             // Blog 
             services.AddScoped<IReviewBlogService, ReviewBlogService>();
+            services.AddScoped<IReviewBlogReactionService, ReviewBlogReactionService>();
 
             // Cart
             services.AddScoped<ICartService, CartServices>();
