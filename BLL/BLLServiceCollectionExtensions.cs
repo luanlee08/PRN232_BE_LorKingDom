@@ -4,10 +4,12 @@ using BLL.Interfaces;
 using BLL.Interfaces.Moderation;
 using BLL.Interfaces.Notification;
 using BLL.Interfaces.Order;
+using BLL.Interfaces.Wallet;
 using BLL.Services;
 using BLL.Services.Moderation;
 using BLL.Services.Notification;
 using BLL.Services.Order;
+using BLL.Services.Wallet;
 using BLL.Validators.Address;
 using BLL.Validators.Auth;
 using BLL.Validators.SuperCategory;
@@ -70,6 +72,10 @@ namespace BLL
             services.AddScoped<IVNPayService, VNPayService>();
             services.AddScoped<IMoMoService, MoMoService>();
             services.AddScoped<ISepayService, SepayService>();
+
+            // Wallet - CQRS pattern services
+            services.AddScoped<IWalletQueryService, WalletQueryService>();
+            services.AddScoped<IWalletCommandService, WalletCommandService>();
 
             // Shipping Providers
             services.AddScoped<IGHNService, GHNService>();
