@@ -1,6 +1,7 @@
 using BLL.DTOs;
 using BLL.DTOs.ReviewProduct;
 using BLL.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -8,6 +9,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
 {
     [Route("api/admin/reviews")]
     [ApiController]
+    [Authorize(Roles = "Admin,Staff")]
     public class AReviewProductsController : ControllerBase
     {
         private readonly IReviewProductService _reviewProductService;

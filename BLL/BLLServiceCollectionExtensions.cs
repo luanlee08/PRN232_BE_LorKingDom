@@ -43,6 +43,9 @@ namespace BLL
             // Address
             services.AddScoped<IAddressServices, AddressServices>();
 
+            // Blog 
+            services.AddScoped<IReviewBlogService, ReviewBlogService>();
+
             // Cart
             services.AddScoped<ICartService, CartServices>();
 
@@ -121,6 +124,10 @@ namespace BLL
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();
             services.AddValidatorsFromAssemblyContaining<RegisterValidator>();
 
+            // Blogs
+            // Blog
+            services.AddScoped<IBlogCategoryService, BlogCategoryService>();
+            services.AddScoped<IBlogService, BlogService>();
             return services;
         }
     }
