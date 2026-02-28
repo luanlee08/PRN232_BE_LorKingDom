@@ -43,6 +43,10 @@ namespace BLL.Domain
                 },
                 [OrderStatusNames.Delivered] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
+                    OrderStatusNames.Completed
+                },
+                [OrderStatusNames.Completed] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
                     OrderStatusNames.Refunded
                 },
                 [OrderStatusNames.Cancelled] = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
