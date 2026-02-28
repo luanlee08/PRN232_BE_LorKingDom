@@ -921,11 +921,11 @@ namespace BLL.Services
 
                 await _context.SaveChangesAsync();
 
-                // Send appropriate notification based on status change (system-generated)
-                var orderCode = $"ORD{order.OrderId:D6}";
-                await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, newStatus.StatusName, orderCode);
-
                 await transaction.CommitAsync();
+
+                // Send notification AFTER commit — prevents notification failure from rolling back the status update
+                var orderCode = $"ORD{order.OrderId:D6}";
+                await SendOrderStatusNotificationAsync(order, newStatus.StatusName, orderCode);
 
                 // Auto-create GHN shipping order if requested and status is Processing or Confirmed
                 CreateShippingOrderResponse? shippingResponse = null;
@@ -1081,7 +1081,8 @@ namespace BLL.Services
                 }).ToArray();
 
                 // 5. Validate shipping address completeness
-                if (string.IsNullOrEmpty(order.ShippingCity))
+                // Skip text-field check when GHN IDs are already stored (they take priority in step 6)
+                if (string.IsNullOrEmpty(order.ShippingCity) && !order.ShippingDistrictId.HasValue)
                 {
                     return new ApiResponse<CreateShippingOrderResponse>
                     {
@@ -1091,7 +1092,7 @@ namespace BLL.Services
                     };
                 }
 
-                if (string.IsNullOrEmpty(order.ShippingDistrict))
+                if (string.IsNullOrEmpty(order.ShippingDistrict) && !order.ShippingDistrictId.HasValue)
                 {
                     return new ApiResponse<CreateShippingOrderResponse>
                     {
@@ -1245,7 +1246,7 @@ namespace BLL.Services
 
                     // Send notification
                     var orderCode = $"ORD{order.OrderId:D6}";
-                    await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, shippedStatus.StatusName, orderCode);
+                    await SendOrderStatusNotificationAsync(order, shippedStatus.StatusName, orderCode);
                 }
 
                 await transaction.CommitAsync();
@@ -1390,7 +1391,7 @@ namespace BLL.Services
 
                     // Send notification
                     var orderCode = $"ORD{order.OrderId:D6}";
-                    await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, newStatus.StatusName, orderCode);
+                    await SendOrderStatusNotificationAsync(order, newStatus.StatusName, orderCode);
 
                     _logger.LogInformation("Order {OrderId} status updated from {OldStatus} to {NewStatus} via webhook",
                         order.OrderId, oldStatusName, newStatus.StatusName);
@@ -2020,14 +2021,18 @@ namespace BLL.Services
             return new OrderDto
             {
                 OrderId = order.OrderId,
+                OrderCode = $"ORD{order.OrderId:D6}",
                 AccountId = order.AccountId,
                 AccountName = order.Account?.AccountName,
                 VoucherId = order.VoucherId,
                 VoucherCode = order.Voucher?.VoucherCode,
+                StatusId = order.Status?.StatusId ?? order.StatusId,
+                StatusName = order.Status?.StatusName ?? "",
                 ShippingName = order.ShippingName,
                 ShippingPhone = order.ShippingPhone,
                 ShippingAddressLine = order.ShippingAddressLine,
                 ShippingCity = order.ShippingCity,
+                ShippingDistrict = order.ShippingDistrict,
                 ShippingWard = order.ShippingWard,
                 ShippingMethod = order.ShippingMethod,
                 ShippingFee = order.ShippingFee,
@@ -2318,13 +2323,16 @@ namespace BLL.Services
         /// <summary>
         /// Send order status notification to customer (system-generated)
         /// </summary>
-        private async Task SendOrderStatusNotificationAsync(int orderId, int accountId, string statusName, string orderCode)
+        private async Task SendOrderStatusNotificationAsync(DAL.Models.Order order, string statusName, string orderCode)
         {
+            var orderId = order.OrderId;
+            var accountId = order.AccountId;
             try
             {
                 string? templateCode = statusName switch
                 {
                     OrderStatusNames.Processing => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
+                    OrderStatusNames.Confirmed => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
                     OrderStatusNames.Shipped => NotificationConstants.SystemOnlyTemplateCodes.OrderShipped,
                     OrderStatusNames.Delivered => NotificationConstants.SystemOnlyTemplateCodes.OrderDelivered,
                     OrderStatusNames.Cancelled => NotificationConstants.SystemOnlyTemplateCodes.OrderCancelled,
@@ -2333,6 +2341,35 @@ namespace BLL.Services
 
                 if (templateCode == null)
                     return;
+
+                // Build parameters — ShippingName & TotalAmount are already on the entity, no extra query
+                var parameters = new Dictionary<string, string>
+                {
+                    { "orderId",      orderId.ToString() },
+                    { "OrderId",      orderId.ToString() },
+                    { "orderCode",    orderCode },
+                    { "status",       statusName },
+                    { "customerName", order.ShippingName ?? string.Empty },
+                    { "totalAmount",  order.TotalAmount.ToString("N0") },
+                    { "TotalAmount",  order.TotalAmount.ToString("N0") },
+                };
+
+                // For shipped orders, load tracking info from ShippingProviderTransaction
+                if (statusName == OrderStatusNames.Shipped)
+                {
+                    var shipping = await _context.ShippingProviderTransactions
+                        .Where(s => s.OrderId == orderId)
+                        .OrderByDescending(s => s.CreatedAt)
+                        .FirstOrDefaultAsync();
+
+                    var trackingCode = shipping?.TrackingNumber ?? shipping?.ProviderOrderCode ?? string.Empty;
+                    var shippingUnit = shipping?.Provider ?? string.Empty;
+
+                    parameters["trackingCode"] = trackingCode;
+                    parameters["TrackingNumber"] = trackingCode;
+                    parameters["shippingUnit"] = shippingUnit;
+                    parameters["ShippingUnit"] = shippingUnit;
+                }
 
                 var payload = JsonSerializer.Serialize(new
                 {
@@ -2349,11 +2386,7 @@ namespace BLL.Services
                         TemplateCode = templateCode,
                         TargetType = NotificationConstants.TargetTypes.User,
                         TargetUserId = accountId,
-                        Parameters = new Dictionary<string, string>
-                        {
-                            { "orderCode", orderCode },
-                            { "status", statusName }
-                        },
+                        Parameters = parameters,
                         Payload = payload
                     },
                     createdByAccountId: 0, // System account
