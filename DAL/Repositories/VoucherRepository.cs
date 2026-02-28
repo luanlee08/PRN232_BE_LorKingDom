@@ -87,17 +87,10 @@ namespace DAL.Repositories
             return await query.AnyAsync();
         }
 
-        //public async Task<List<VoucherType>> GetVoucherTypesAsync()
-        //{
-        //    return await _context.VoucherTypes
-        //        .OrderBy(vt => vt.VoucherTypeId)
-        //        .ToListAsync();
-        //}
-
-        //public async Task<VoucherType?> GetVoucherTypeByIdAsync(int voucherTypeId)
-        //{
-        //    return await _context.VoucherTypes
-        //        .FirstOrDefaultAsync(vt => vt.VoucherTypeId == voucherTypeId);
-        //}
+        public async Task<VoucherType?> GetVoucherTypeByIdAsync(int voucherTypeId)
+        {
+            return await _context.VoucherTypes
+                .FirstOrDefaultAsync(vt => vt.VoucherTypeId == voucherTypeId);
+        }
     }
 }

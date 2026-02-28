@@ -18,5 +18,6 @@ namespace DAL.Interface
         IQueryable<ReviewBlog> GetQueryable();
 
         Task SaveChangesAsync();
+
     }
 }

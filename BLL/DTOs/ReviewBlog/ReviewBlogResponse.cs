@@ -10,8 +10,10 @@ namespace BLL.DTOs.ReviewBlog
     {
         public int ReviewBlogId { get; set; }
         public int AccountId { get; set; }
-        public string AccountEmail { get; set; } = string.Empty;
+        public string? CustomerName { get; set; }
         public int Rating { get; set; }
+        public int LikeCount { get; set; }
+        public int DislikeCount { get; set; }
         public string? Comment { get; set; }
         public bool IsBlocked { get; set; }
         public DateTime CreatedAt { get; set; }

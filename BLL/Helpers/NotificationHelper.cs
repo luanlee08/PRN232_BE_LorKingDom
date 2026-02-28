@@ -15,9 +15,10 @@ namespace BLL.Helpers
 
             foreach (var param in parameters)
             {
-                // Support both {{key}} and {key} formats
+                // Support {{key}}, {key}, and #{key} formats
                 text = text.Replace($"{{{{{param.Key}}}}}", param.Value);
                 text = text.Replace($"{{{param.Key}}}", param.Value);
+                text = text.Replace($"#{{{param.Key}}}", param.Value);
             }
 
             return text;
