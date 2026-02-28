@@ -31,6 +31,7 @@ namespace BLL.Interfaces
         Task<ApiResponse<RefundDto>> CreateRefundRequestAsync(CreateRefundRequest request, int accountId);
         Task<ApiResponse<RefundDto>> ApproveRefundAsync(ApproveRefundRequest request, int adminId);
         Task<ApiResponse<PagedResult<RefundDto>>> GetRefundRequestsAsync(int pageNumber = 1, int pageSize = 10, string? statusFilter = null);
+        Task<ApiResponse<PagedResult<RefundDto>>> GetMyRefundsAsync(int accountId, int pageNumber = 1, int pageSize = 10);
         Task<ApiResponse<RefundDto>> GetRefundByIdAsync(long refundId);
 
         // Admin Order Management (from remote)

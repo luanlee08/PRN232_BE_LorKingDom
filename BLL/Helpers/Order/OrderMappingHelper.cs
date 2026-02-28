@@ -82,7 +82,10 @@ namespace BLL.Helpers.Order
             {
                 RefundId = refund.RefundId,
                 OrderId = refund.OrderId,
+                OrderCode = $"ORD{refund.OrderId:D6}",
                 AccountId = refund.AccountId,
+                CustomerName = refund.Account?.AccountName,
+                CustomerEmail = refund.Account?.Email,
                 RefundMode = refund.RefundMode,
                 RefundStatus = refund.RefundStatus,
                 TotalAmount = refund.TotalAmount,
