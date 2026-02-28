@@ -151,6 +151,10 @@ namespace BLL
             // Blog
             services.AddScoped<IBlogCategoryService, BlogCategoryService>();
             services.AddScoped<IBlogService, BlogService>();
+
+            // Statistics
+            services.AddScoped<IStatisticsService, StatisticsService>();
+
             return services;
         }
     }
