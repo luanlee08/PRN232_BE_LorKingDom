@@ -1,4 +1,6 @@
-﻿using BLL.Helpers.Notification;
+﻿using BLL.Events;
+using BLL.Events.Order.Handlers;
+using BLL.Helpers.Notification;
 using BLL.Helpers.Order;
 using BLL.Interfaces;
 using BLL.Interfaces.Moderation;
@@ -110,6 +112,20 @@ namespace BLL
 
             // Notification - Keep old service for backward compatibility (will be deprecated)
             services.AddScoped<INotificationService, NotificationService>();
+
+            // =========================================================
+            // Domain Events
+            // =========================================================
+            // Dispatcher uses IServiceProvider to resolve handlers at runtime,
+            // so new handlers just need to be registered here — no other changes.
+            services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+
+            // Order domain event handlers (subscribe to order events → send notifications)
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderCreatedEvent>, OrderCreatedNotificationHandler>();
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderStatusChangedEvent>, OrderStatusChangedNotificationHandler>();
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderCancelledEvent>, OrderCancelledNotificationHandler>();
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderPaidEvent>, OrderPaidNotificationHandler>();
+            // =========================================================
 
             // Template
             services.AddScoped<ITemplateService, TemplateService>();

@@ -1,50 +1,63 @@
 using BLL.DTOs.Orders;
+using BLL.Events;
+using BLL.Events.Order;
 using BLL.Helpers.Order;
 using BLL.Interfaces.Order;
+using DAL.Infrastructure;
 using DAL.Interface;
 using DAL.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Order
 {
     /// <summary>
-    /// Service for handling Order command operations (write)
+    /// Handles all Order write operations (Create, Cancel, UpdateStatus, ConfirmCOD).
+    ///
+    /// Design principles applied:
+    ///   - No DbContext reference — all persistence via IUnitOfWork + repositories
+    ///   - No direct INotificationCommandService call — uses IDomainEventDispatcher
+    ///   - State transitions validated via OrderStatusTransitions before any DB write
     /// </summary>
     public class OrderCommandService : IOrderCommandService
     {
-        private readonly AspLorKingDomContext _context;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IOrderRepository _orderRepo;
         private readonly ICartRepository _cartRepo;
         private readonly IProductRepository _productRepo;
+        private readonly IVoucherRepository _voucherRepo;
         private readonly OrderValidationHelper _validationHelper;
         private readonly OrderCalculationHelper _calculationHelper;
         private readonly IOrderPaymentService _paymentService;
+        private readonly IDomainEventDispatcher _dispatcher;
         private readonly ILogger<OrderCommandService> _logger;
 
         public OrderCommandService(
-            AspLorKingDomContext context,
+            IUnitOfWork unitOfWork,
             IOrderRepository orderRepo,
             ICartRepository cartRepo,
             IProductRepository productRepo,
+            IVoucherRepository voucherRepo,
             OrderValidationHelper validationHelper,
             OrderCalculationHelper calculationHelper,
             IOrderPaymentService paymentService,
+            IDomainEventDispatcher dispatcher,
             ILogger<OrderCommandService> logger)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
             _orderRepo = orderRepo;
             _cartRepo = cartRepo;
             _productRepo = productRepo;
+            _voucherRepo = voucherRepo;
             _validationHelper = validationHelper;
             _calculationHelper = calculationHelper;
             _paymentService = paymentService;
+            _dispatcher = dispatcher;
             _logger = logger;
         }
 
         public async Task<OrderDto> CreateOrderAsync(CreateOrderRequest request, string ipAddress)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            await _unitOfWork.BeginTransactionAsync();
             try
             {
                 // 1. Validate cart
@@ -70,9 +83,9 @@ namespace BLL.Services.Order
                         throw new InvalidOperationException(errorMsg ?? "Voucher không hợp lệ");
                     }
                     voucher = validatedVoucher;
-                    if (voucher != null)
+                    if (voucher?.VoucherTypeId != null)
                     {
-                        voucherType = await _context.VoucherTypes.FindAsync(voucher.VoucherTypeId);
+                        voucherType = await _voucherRepo.GetVoucherTypeByIdAsync(voucher.VoucherTypeId);
                         discount = _calculationHelper.CalculateDiscount(voucher, voucherType, subtotal);
                     }
                 }
@@ -154,21 +167,32 @@ namespace BLL.Services.Order
                 // 11. Clear cart
                 await _cartRepo.DeleteAllCartItemsAsync(cart.CartId);
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
 
                 // 12. Reload order with details to return
                 var createdOrder = await _orderRepo.GetByIdWithDetailsAsync(order.OrderId);
-                return MapOrderToDto(createdOrder!);
+                var dto = MapOrderToDto(createdOrder!);
+
+                // 13. Dispatch domain event AFTER transaction — notification failure won't roll back the order
+                await _dispatcher.DispatchAsync(new OrderCreatedEvent
+                {
+                    OrderId = order.OrderId,
+                    AccountId = request.AccountId,
+                    TotalAmount = totalAmount,
+                    PaymentMethod = request.PaymentMethod,
+                    ShippingName = request.ShippingName ?? ""
+                });
+
+                return dto;
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, "Error creating order");
                 throw;
             }
         }
-
         private async Task ProcessPaymentAsync(
             DAL.Models.Order order,
             string paymentMethod,
@@ -178,7 +202,6 @@ namespace BLL.Services.Order
         {
             if (paymentMethod == PaymentMethods.Wallet)
             {
-                // Process wallet payment
                 var walletResult = await _paymentService.ProcessWalletPaymentAsync(order.OrderId, accountId);
                 if (!walletResult.Success)
                 {
@@ -187,7 +210,6 @@ namespace BLL.Services.Order
             }
             else if (paymentMethod == PaymentMethods.COD)
             {
-                // COD - just create payment history
                 await _orderRepo.AddPaymentHistoryAsync(new PaymentHistory
                 {
                     OrderId = order.OrderId,
@@ -201,7 +223,6 @@ namespace BLL.Services.Order
             }
             else // External payment gateways
             {
-                // Create payment history for external payment
                 var paymentHistory = await _orderRepo.AddPaymentHistoryAsync(new PaymentHistory
                 {
                     OrderId = order.OrderId,
@@ -213,7 +234,6 @@ namespace BLL.Services.Order
                     CreatedAt = DateTime.UtcNow
                 });
 
-                // Create PaymentGatewayTransaction
                 var gatewayTxn = await _orderRepo.AddPaymentGatewayTransactionAsync(new PaymentGatewayTransaction
                 {
                     PaymentHistoryId = paymentHistory.PaymentHistoryId,
@@ -223,11 +243,10 @@ namespace BLL.Services.Order
                     CreatedAt = DateTime.UtcNow
                 });
 
-                // Generate payment URL
                 var paymentUrl = await _paymentService.GeneratePaymentUrlAsync(
                     order.OrderId,
                     paymentMethod,
-                    "https://localhost", // Will be passed from controller
+                    "https://localhost",
                     ipAddress);
 
                 gatewayTxn.PaymentUrl = paymentUrl;
@@ -239,7 +258,7 @@ namespace BLL.Services.Order
 
         public async Task CancelOrderAsync(int orderId, CancelOrderRequest request)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var order = await _orderRepo.GetByIdWithDetailsAsync(orderId);
@@ -249,25 +268,26 @@ namespace BLL.Services.Order
                     throw new KeyNotFoundException("Không tìm thấy đơn hàng");
                 }
 
-                // Validate cancellation
                 var (canCancel, errorMessage) = _validationHelper.ValidateCancellation(order, order.AccountId);
                 if (!canCancel)
                 {
                     throw new InvalidOperationException(errorMessage ?? "Cannot cancel order");
                 }
 
-                // Get Cancelled status
+                // Validate state transition via domain rule
+                Domain.OrderStatusTransitions.ThrowIfInvalid(order.Status.StatusName, OrderStatusNames.Cancelled);
+
                 var cancelledStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Cancelled);
                 if (cancelledStatus == null)
                 {
                     throw new Exception("Cancelled status not found");
                 }
 
-                // Update order status
+                var hasPayment = order.PaymentCompletedAt.HasValue && order.PaidByWalletAmount > 0;
+
                 order.StatusId = cancelledStatus.StatusId;
                 order.UpdatedAt = DateTime.UtcNow;
 
-                // Restore product quantity
                 foreach (var detail in order.OrderDetails)
                 {
                     if (detail.Product != null)
@@ -277,7 +297,6 @@ namespace BLL.Services.Order
                     }
                 }
 
-                // Add status history
                 await _orderRepo.AddOrderStatusHistoryAsync(new OrderStatusHistory
                 {
                     OrderId = orderId,
@@ -288,19 +307,22 @@ namespace BLL.Services.Order
                     CreatedAt = DateTime.UtcNow
                 });
 
-                // Refund if payment was completed
-                if (order.PaymentCompletedAt.HasValue && order.PaidByWalletAmount > 0)
-                {
-                    // Create refund (will be handled by RefundService)
-                    _logger.LogInformation("Order {OrderId} cancelled with payment. Refund needed.", orderId);
-                }
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                // Dispatch event — notification sent by OrderCancelledNotificationHandler
+                await _dispatcher.DispatchAsync(new OrderCancelledEvent
+                {
+                    OrderId = orderId,
+                    AccountId = order.AccountId,
+                    TotalAmount = order.TotalAmount,
+                    Reason = request.Reason,
+                    HasPaymentToRefund = hasPayment
+                });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, "Error cancelling order {OrderId}", orderId);
                 throw;
             }
@@ -317,18 +339,20 @@ namespace BLL.Services.Order
                     throw new KeyNotFoundException("Không tìm thấy đơn hàng");
                 }
 
-                // Get new status
                 var newStatus = await _orderRepo.GetStatusByIdAsync(request.StatusId);
                 if (newStatus == null)
                 {
                     throw new KeyNotFoundException("Trạng thái không hợp lệ");
                 }
 
-                // Update order
+                var oldStatusName = order.Status.StatusName;
+
+                // Validate state transition via domain rule
+                Domain.OrderStatusTransitions.ThrowIfInvalid(oldStatusName, newStatus.StatusName);
+
                 order.StatusId = request.StatusId;
                 order.UpdatedAt = DateTime.UtcNow;
 
-                // Add status history
                 await _orderRepo.AddOrderStatusHistoryAsync(new OrderStatusHistory
                 {
                     OrderId = orderId,
@@ -339,7 +363,20 @@ namespace BLL.Services.Order
                     CreatedAt = DateTime.UtcNow
                 });
 
-                await _context.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync();
+
+                // Dispatch event — notification sent by OrderStatusChangedNotificationHandler
+                var shippingTx = order.ShippingProviderTransactions.FirstOrDefault();
+                await _dispatcher.DispatchAsync(new OrderStatusChangedEvent
+                {
+                    OrderId = orderId,
+                    AccountId = order.AccountId,
+                    OldStatus = oldStatusName,
+                    NewStatus = newStatus.StatusName,
+                    Note = request.Note,
+                    TrackingNumber = shippingTx?.TrackingNumber ?? shippingTx?.ProviderOrderCode,
+                    ShippingProvider = shippingTx?.Provider
+                });
             }
             catch (Exception ex)
             {
@@ -359,20 +396,27 @@ namespace BLL.Services.Order
                     throw new KeyNotFoundException("Không tìm thấy đơn hàng");
                 }
 
-                // Update payment history
-                var paymentHistory = await _context.PaymentHistories
-                    .FirstOrDefaultAsync(ph => ph.OrderId == orderId && ph.PaymentMethod == PaymentMethods.COD);
+                // Use repository instead of DbContext directly
+                var paymentHistory = await _orderRepo.GetPaymentHistoryByOrderIdAndMethodAsync(orderId, PaymentMethods.COD);
 
                 if (paymentHistory != null)
                 {
                     paymentHistory.PaymentStatus = PaymentStatus.Success;
                 }
 
-                // Update order
                 order.PaymentCompletedAt = DateTime.UtcNow;
                 order.PaidByExternalAmount = order.TotalAmount;
 
-                await _context.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync();
+
+                // Dispatch payment confirmed event
+                await _dispatcher.DispatchAsync(new OrderPaidEvent
+                {
+                    OrderId = orderId,
+                    AccountId = order.AccountId,
+                    Amount = order.TotalAmount,
+                    PaymentMethod = PaymentMethods.COD
+                });
             }
             catch (Exception ex)
             {
@@ -381,9 +425,8 @@ namespace BLL.Services.Order
             }
         }
 
-        private OrderDto MapOrderToDto(DAL.Models.Order order)
+        private static OrderDto MapOrderToDto(DAL.Models.Order order)
         {
-            // Simplified mapping - use OrderMappingHelper in production
             return new OrderDto
             {
                 OrderId = order.OrderId,

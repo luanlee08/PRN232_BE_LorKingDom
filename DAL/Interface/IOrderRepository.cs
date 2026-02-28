@@ -59,6 +59,9 @@ namespace DAL.Interface
 
         Task UpdateStatusAsync(int orderId, int statusId);
 
+        /// <summary>Get the first payment history record for an order+method combination.</summary>
+        Task<PaymentHistory?> GetPaymentHistoryByOrderIdAndMethodAsync(int orderId, string paymentMethod);
+
         Task<List<Order>> GetOrdersForExportAsync(
             string? keyword,
             int? statusId,
