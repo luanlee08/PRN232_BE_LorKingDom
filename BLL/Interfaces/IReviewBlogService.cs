@@ -19,5 +19,6 @@ namespace BLL.Interfaces
             GetAllAsync(int page, int pageSize);
 
         Task<ApiResponse<bool>> BlockAsync(int reviewId, bool isBlocked);
+
     }
 }

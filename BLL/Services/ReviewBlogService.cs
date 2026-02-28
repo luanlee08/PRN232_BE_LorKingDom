@@ -69,7 +69,7 @@ namespace BLL.Services
         /* ================= GET BY BLOG ================= */
 
         public async Task<ApiResponse<List<ReviewBlogResponse>>>
-            GetByBlogIdAsync(int blogPostId)
+    GetByBlogIdAsync(int blogPostId)
         {
             var reviews = await _reviewRepo
                 .GetByBlogIdAsync(blogPostId);
@@ -78,8 +78,21 @@ namespace BLL.Services
             {
                 ReviewBlogId = r.ReviewBlogId,
                 AccountId = r.AccountId,
-                AccountEmail = r.Account.Email,
+
+                // Lấy tên thay vì email
+                CustomerName = string.IsNullOrEmpty(r.Account.AccountName)
+                    ? r.Account.Email
+                    : r.Account.AccountName,
+
                 Rating = r.Rating,
+
+                // Tính từ bảng reaction
+                LikeCount = r.ReviewBlogReactions
+                    .Count(x => x.ReactionType == "Like"),
+
+                DislikeCount = r.ReviewBlogReactions
+                    .Count(x => x.ReactionType == "Dislike"),
+
                 Comment = r.Comment,
                 IsBlocked = r.IsBlocked,
                 CreatedAt = r.CreatedAt
@@ -93,7 +106,6 @@ namespace BLL.Services
                 Data = result
             };
         }
-
         /* ================= ADMIN ================= */
 
         public async Task<ApiResponse<PagedResult<ReviewBlogAdminDto>>>
@@ -165,5 +177,6 @@ namespace BLL.Services
                 Data = true
             };
         }
+
     }
 }

@@ -35,10 +35,11 @@ namespace DAL.Repositories
         }
 
         public async Task<List<ReviewBlog>>
-            GetByBlogIdAsync(int blogPostId)
+    GetByBlogIdAsync(int blogPostId)
         {
             return await _context.ReviewBlogs
                 .Include(r => r.Account)
+                .Include(r => r.ReviewBlogReactions)   // 🔥 THÊM DÒNG NÀY
                 .Where(r =>
                     r.BlogPostId == blogPostId &&
                     !r.IsBlocked)
@@ -50,5 +51,6 @@ namespace DAL.Repositories
         {
             await _context.SaveChangesAsync();
         }
+
     }
 }
