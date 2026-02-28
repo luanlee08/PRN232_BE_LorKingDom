@@ -50,6 +50,9 @@ namespace DAL
             // Cart
             services.AddScoped<ICartRepository, CartRepository>();
 
+            // Blog
+            services.AddScoped<IReviewBlogRepository, ReviewBlogRepository>();
+
             // Order & Wallet
             services.AddScoped<IOrderRepository, OrderRepository>();
             services.AddScoped<IWalletRepository, WalletRepository>();
@@ -85,6 +88,10 @@ namespace DAL
             // Order
             services.AddScoped<IOrderRepository, OrderRepository>();
 
+            //Blogs
+            // Blogs
+            services.AddScoped<IBlogRepository, BlogRepository>();
+            services.AddScoped<IBlogCategoryRepository, BlogCategoryRepository>();
             return services;
         }
     }

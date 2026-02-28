@@ -24,6 +24,8 @@
         public int EditCount { get; set; }
         public bool CanEdit { get; set; }
 
+        public List<ReplyResponse> Replies { get; set; } = new();
+
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
