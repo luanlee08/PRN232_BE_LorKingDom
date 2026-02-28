@@ -59,6 +59,10 @@ namespace DAL.Repositories
         {
             var query = _context.Orders
                 .Include(o => o.Status)
+                .Include(o => o.OrderStatusHistories)
+                    .ThenInclude(osh => osh.Status)
+                .Include(o => o.OrderStatusHistories)
+                    .ThenInclude(osh => osh.ChangedByNavigation)
                 .Include(o => o.OrderDetails.Where(od => !od.IsDeleted))
                     .ThenInclude(od => od.Product)
                         .ThenInclude(p => p.ProductImages)
@@ -80,6 +84,10 @@ namespace DAL.Repositories
         {
             var query = _context.Orders
                 .Include(o => o.Status)
+                .Include(o => o.OrderStatusHistories)
+                    .ThenInclude(osh => osh.Status)
+                .Include(o => o.OrderStatusHistories)
+                    .ThenInclude(osh => osh.ChangedByNavigation)
                 .Include(o => o.Account)
                 .Include(o => o.OrderDetails.Where(od => !od.IsDeleted))
                     .ThenInclude(od => od.Product)
@@ -398,6 +406,12 @@ namespace DAL.Repositories
                 order.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task<PaymentHistory?> GetPaymentHistoryByOrderIdAndMethodAsync(int orderId, string paymentMethod)
+        {
+            return await _context.PaymentHistories
+                .FirstOrDefaultAsync(ph => ph.OrderId == orderId && ph.PaymentMethod == paymentMethod);
         }
 
         public async Task<List<Order>> GetOrdersForExportAsync(
