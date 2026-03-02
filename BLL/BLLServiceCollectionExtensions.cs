@@ -1,13 +1,17 @@
-﻿using BLL.Helpers.Notification;
+﻿using BLL.Events;
+using BLL.Events.Order.Handlers;
+using BLL.Helpers.Notification;
 using BLL.Helpers.Order;
 using BLL.Interfaces;
 using BLL.Interfaces.Moderation;
 using BLL.Interfaces.Notification;
 using BLL.Interfaces.Order;
+using BLL.Interfaces.Wallet;
 using BLL.Services;
 using BLL.Services.Moderation;
 using BLL.Services.Notification;
 using BLL.Services.Order;
+using BLL.Services.Wallet;
 using BLL.Validators.Address;
 using BLL.Validators.Auth;
 using BLL.Validators.SuperCategory;
@@ -45,6 +49,7 @@ namespace BLL
 
             // Blog 
             services.AddScoped<IReviewBlogService, ReviewBlogService>();
+            services.AddScoped<IReviewBlogReactionService, ReviewBlogReactionService>();
 
             // Cart
             services.AddScoped<ICartService, CartServices>();
@@ -70,6 +75,10 @@ namespace BLL
             services.AddScoped<IVNPayService, VNPayService>();
             services.AddScoped<IMoMoService, MoMoService>();
             services.AddScoped<ISepayService, SepayService>();
+
+            // Wallet - CQRS pattern services
+            services.AddScoped<IWalletQueryService, WalletQueryService>();
+            services.AddScoped<IWalletCommandService, WalletCommandService>();
 
             // Shipping Providers
             services.AddScoped<IGHNService, GHNService>();
@@ -110,6 +119,20 @@ namespace BLL
             // Notification - Keep old service for backward compatibility (will be deprecated)
             services.AddScoped<INotificationService, NotificationService>();
 
+            // =========================================================
+            // Domain Events
+            // =========================================================
+            // Dispatcher uses IServiceProvider to resolve handlers at runtime,
+            // so new handlers just need to be registered here — no other changes.
+            services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+
+            // Order domain event handlers (subscribe to order events → send notifications)
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderCreatedEvent>, OrderCreatedNotificationHandler>();
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderStatusChangedEvent>, OrderStatusChangedNotificationHandler>();
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderCancelledEvent>, OrderCancelledNotificationHandler>();
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderPaidEvent>, OrderPaidNotificationHandler>();
+            // =========================================================
+
             // Template
             services.AddScoped<ITemplateService, TemplateService>();
 
@@ -128,6 +151,10 @@ namespace BLL
             // Blog
             services.AddScoped<IBlogCategoryService, BlogCategoryService>();
             services.AddScoped<IBlogService, BlogService>();
+
+            // Statistics
+            services.AddScoped<IStatisticsService, StatisticsService>();
+
             return services;
         }
     }

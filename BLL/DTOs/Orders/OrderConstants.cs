@@ -24,6 +24,7 @@ namespace BLL.DTOs.Orders
         public const string Confirmed = "Confirmed"; // StatusId 2 in database
         public const string Shipped = "Shipped";
         public const string Delivered = "Delivered";
+        public const string Completed = "Completed"; // StatusId 5 in database – fully finished
         public const string Cancelled = "Cancelled";
         public const string Refunded = "Refunded";
     }

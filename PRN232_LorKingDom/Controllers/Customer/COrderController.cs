@@ -112,5 +112,41 @@ namespace PRN232_LorKingDom.Controllers.Customer
             return StatusCode(result.Status, result);
         }
 
+        /// <summary>
+        /// Get my refund requests
+        /// </summary>
+        [Authorize]
+        [HttpGet("refund/my-refunds")]
+        public async Task<IActionResult> GetMyRefunds(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var accountId = GetAccountId();
+            if (accountId == 0)
+            {
+                return Unauthorized(new { message = "Unauthorized" });
+            }
+
+            var result = await _orderService.GetMyRefundsAsync(accountId, pageNumber, pageSize);
+            return StatusCode(result.Status, result);
+        }
+
+        /// <summary>
+        /// Get refund by ID
+        /// </summary>
+        [Authorize]
+        [HttpGet("refund/{refundId}")]
+        public async Task<IActionResult> GetRefundById(long refundId)
+        {
+            var accountId = GetAccountId();
+            if (accountId == 0)
+            {
+                return Unauthorized(new { message = "Unauthorized" });
+            }
+
+            var result = await _orderService.GetRefundByIdAsync(refundId);
+            return StatusCode(result.Status, result);
+        }
+
     }
 }

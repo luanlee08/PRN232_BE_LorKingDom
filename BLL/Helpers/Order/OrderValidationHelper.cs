@@ -1,30 +1,36 @@
 using BLL.DTOs.Orders;
+using BLL.Domain;
+using DAL.Interface;
 using DAL.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace BLL.Helpers.Order
 {
     /// <summary>
-    /// Helper for order validation logic
+    /// Helper for order validation logic.
+    /// Depends only on repository interfaces — no DbContext reference.
     /// </summary>
     public class OrderValidationHelper
     {
-        private readonly AspLorKingDomContext _context;
+        private readonly ICartRepository _cartRepo;
+        private readonly IVoucherRepository _voucherRepo;
+        private readonly IAddressRepositories _addressRepo;
 
-        public OrderValidationHelper(AspLorKingDomContext context)
+        public OrderValidationHelper(
+            ICartRepository cartRepo,
+            IVoucherRepository voucherRepo,
+            IAddressRepositories addressRepo)
         {
-            _context = context;
+            _cartRepo = cartRepo;
+            _voucherRepo = voucherRepo;
+            _addressRepo = addressRepo;
         }
 
         /// <summary>
-        /// Validate cart async and return cart
+        /// Validate cart and return it (with CartItems + Products included via repository).
         /// </summary>
         public async Task<Cart> ValidateCartAsync(int accountId)
         {
-            var cart = await _context.Carts
-                .Include(c => c.CartItems)
-                    .ThenInclude(ci => ci.Product)
-                .FirstOrDefaultAsync(c => c.AccountId == accountId);
+            var cart = await _cartRepo.GetCartByAccountIdAsync(accountId);
 
             if (cart == null || !cart.CartItems.Any())
             {
@@ -85,7 +91,7 @@ namespace BLL.Helpers.Order
         }
 
         /// <summary>
-        /// Validate voucher and check conditions
+        /// Validate voucher and check conditions using IVoucherRepository.
         /// </summary>
         public async Task<(bool IsValid, string? ErrorMessage, Voucher? Voucher)> ValidateVoucherAsync(int? voucherId, decimal subtotal)
         {
@@ -94,8 +100,7 @@ namespace BLL.Helpers.Order
                 return (true, null, null);
             }
 
-            var voucher = await _context.Vouchers
-                .FirstOrDefaultAsync(v => v.VoucherId == voucherId.Value && !v.IsDeleted);
+            var voucher = await _voucherRepo.GetVoucherByIdAsync(voucherId.Value);
 
             if (voucher == null || voucher.Status != "Active")
             {
@@ -116,7 +121,7 @@ namespace BLL.Helpers.Order
         }
 
         /// <summary>
-        /// Validate address belongs to account
+        /// Validate address belongs to account using IAddressRepositories.
         /// </summary>
         public async Task<Address?> ValidateAndGetAddressAsync(int? addressId, int accountId)
         {
@@ -125,14 +130,14 @@ namespace BLL.Helpers.Order
                 return null;
             }
 
-            return await _context.Addresses
-                .FirstOrDefaultAsync(a => a.AddressId == addressId.Value
-                    && a.AccountId == accountId
-                    && !a.IsDeleted);
+            var address = await _addressRepo.GetByIdAsync(addressId.Value);
+            // Ownership check in application layer (domain repository doesn't filter by accountId)
+            return address?.AccountId == accountId && address.IsDeleted != true ? address : null;
         }
 
         /// <summary>
-        /// Validate order can be cancelled
+        /// Validate order can be cancelled by the given account.
+        /// Uses domain state machine to enforce customer-cancellable statuses.
         /// </summary>
         public (bool CanCancel, string? ErrorMessage) ValidateCancellation(DAL.Models.Order order, int accountId)
         {
@@ -141,16 +146,17 @@ namespace BLL.Helpers.Order
                 return (false, "Bạn không có quyền hủy đơn hàng này");
             }
 
-            if (!OrderBusinessRules.CanCancel(order.Status.StatusName))
+            if (!OrderStatusTransitions.IsCustomerCancellable(order.Status.StatusName))
             {
-                return (false, "Không thể hủy đơn hàng ở trạng thái hiện tại");
+                return (false, $"Không thể hủy đơn hàng ở trạng thái '{order.Status.StatusName}'");
             }
 
             return (true, null);
         }
 
         /// <summary>
-        /// Validate refund request
+        /// Validate refund request.
+        /// Refund is only valid when order has been Completed (Completed → Refunded is a valid transition).
         /// </summary>
         public (bool IsValid, string? ErrorMessage) ValidateRefundRequest(DAL.Models.Order order, int accountId, decimal refundAmount)
         {
@@ -159,9 +165,11 @@ namespace BLL.Helpers.Order
                 return (false, "Bạn không có quyền yêu cầu hoàn tiền đơn hàng này");
             }
 
-            if (!OrderBusinessRules.CanRefund(order.Status.StatusName))
+            // Only Completed orders can be refunded by customer
+            var currentStatus = order.Status?.StatusName ?? "";
+            if (!currentStatus.Equals(OrderStatusNames.Completed, StringComparison.OrdinalIgnoreCase))
             {
-                return (false, "Chỉ có thể hoàn tiền đơn hàng đã giao");
+                return (false, "Chỉ có thể hoàn tiền đơn hàng đã hoàn thành");
             }
 
             if (refundAmount > order.TotalAmount)

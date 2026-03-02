@@ -921,11 +921,11 @@ namespace BLL.Services
 
                 await _context.SaveChangesAsync();
 
-                // Send appropriate notification based on status change (system-generated)
-                var orderCode = $"ORD{order.OrderId:D6}";
-                await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, newStatus.StatusName, orderCode);
-
                 await transaction.CommitAsync();
+
+                // Send notification AFTER commit — prevents notification failure from rolling back the status update
+                var orderCode = $"ORD{order.OrderId:D6}";
+                await SendOrderStatusNotificationAsync(order, newStatus.StatusName, orderCode);
 
                 // Auto-create GHN shipping order if requested and status is Processing or Confirmed
                 CreateShippingOrderResponse? shippingResponse = null;
@@ -1081,7 +1081,8 @@ namespace BLL.Services
                 }).ToArray();
 
                 // 5. Validate shipping address completeness
-                if (string.IsNullOrEmpty(order.ShippingCity))
+                // Skip text-field check when GHN IDs are already stored (they take priority in step 6)
+                if (string.IsNullOrEmpty(order.ShippingCity) && !order.ShippingDistrictId.HasValue)
                 {
                     return new ApiResponse<CreateShippingOrderResponse>
                     {
@@ -1091,7 +1092,7 @@ namespace BLL.Services
                     };
                 }
 
-                if (string.IsNullOrEmpty(order.ShippingDistrict))
+                if (string.IsNullOrEmpty(order.ShippingDistrict) && !order.ShippingDistrictId.HasValue)
                 {
                     return new ApiResponse<CreateShippingOrderResponse>
                     {
@@ -1245,7 +1246,7 @@ namespace BLL.Services
 
                     // Send notification
                     var orderCode = $"ORD{order.OrderId:D6}";
-                    await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, shippedStatus.StatusName, orderCode);
+                    await SendOrderStatusNotificationAsync(order, shippedStatus.StatusName, orderCode);
                 }
 
                 await transaction.CommitAsync();
@@ -1390,7 +1391,7 @@ namespace BLL.Services
 
                     // Send notification
                     var orderCode = $"ORD{order.OrderId:D6}";
-                    await SendOrderStatusNotificationAsync(order.OrderId, order.AccountId, newStatus.StatusName, orderCode);
+                    await SendOrderStatusNotificationAsync(order, newStatus.StatusName, orderCode);
 
                     _logger.LogInformation("Order {OrderId} status updated from {OldStatus} to {NewStatus} via webhook",
                         order.OrderId, oldStatusName, newStatus.StatusName);
@@ -1735,13 +1736,28 @@ namespace BLL.Services
                     };
                 }
 
-                if (order.Status.StatusName != OrderStatusNames.Delivered)
+                if (!order.Status.StatusName.Equals(OrderStatusNames.Completed, StringComparison.OrdinalIgnoreCase))
                 {
                     return new ApiResponse<RefundDto>
                     {
                         Status = 400,
                         StatusMessage = "FAILED",
-                        Message = "Chỉ có thể hoàn tiền đơn hàng đã giao"
+                        Message = "Chỉ có thể hoàn tiền đơn hàng đã hoàn thành"
+                    };
+                }
+
+                // Check if a pending refund already exists for this order
+                var existingRefund = await _context.OrderRefunds
+                    .FirstOrDefaultAsync(r => r.OrderId == request.OrderId
+                        && r.AccountId == accountId
+                        && r.RefundStatus == RefundStatus.Requested);
+                if (existingRefund != null)
+                {
+                    return new ApiResponse<RefundDto>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = "Bạn đã có yêu cầu hoàn tiền đang chờ xử lý"
                     };
                 }
 
@@ -1769,6 +1785,13 @@ namespace BLL.Services
                 };
 
                 refund = await _orderRepo.CreateRefundAsync(refund);
+
+                // Update the order's RefundStatus so the order list reflects it immediately
+                order.RefundStatus = RefundStatus.Requested;
+                order.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
 
                 return new ApiResponse<RefundDto>
                 {
@@ -1977,13 +2000,70 @@ namespace BLL.Services
             }
         }
 
+        public async Task<ApiResponse<PagedResult<RefundDto>>> GetMyRefundsAsync(int accountId, int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var skip = (pageNumber - 1) * pageSize;
+
+                var refunds = await _context.OrderRefunds
+                    .Include(r => r.Order)
+                    .ThenInclude(o => o.Status)
+                    .Where(r => r.AccountId == accountId)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Skip(skip)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var total = await _context.OrderRefunds
+                    .Where(r => r.AccountId == accountId)
+                    .CountAsync();
+
+                var dtos = refunds.Select(MapRefundToDto).ToList();
+
+                return new ApiResponse<PagedResult<RefundDto>>
+                {
+                    Status = 200,
+                    StatusMessage = "SUCCESS",
+                    Message = "Lấy danh sách yêu cầu hoàn tiền thành công",
+                    Data = new PagedResult<RefundDto>
+                    {
+                        Items = dtos,
+                        TotalCount = total,
+                        Page = pageNumber,
+                        PageSize = pageSize
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting my refunds for account {AccountId}", accountId);
+                return new ApiResponse<PagedResult<RefundDto>>
+                {
+                    Status = 500,
+                    StatusMessage = "ERROR",
+                    Message = "Có lỗi xảy ra: " + ex.Message
+                };
+            }
+        }
+
         private async Task RefundToWalletAsync(DAL.Models.Order order, int accountId, decimal amount, string reason)
         {
             var wallet = await _walletRepo.GetByAccountIdWithLockAsync(accountId);
 
+            // Auto-create wallet if user doesn’t have one yet
             if (wallet == null)
             {
-                throw new Exception("Wallet not found");
+                wallet = new DAL.Models.Wallet
+                {
+                    AccountId = accountId,
+                    Currency = "VND",
+                    Balance = 0,
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                wallet = await _walletRepo.CreateWalletAsync(wallet);
             }
 
             // Add refund to wallet
@@ -2020,14 +2100,18 @@ namespace BLL.Services
             return new OrderDto
             {
                 OrderId = order.OrderId,
+                OrderCode = $"ORD{order.OrderId:D6}",
                 AccountId = order.AccountId,
                 AccountName = order.Account?.AccountName,
                 VoucherId = order.VoucherId,
                 VoucherCode = order.Voucher?.VoucherCode,
+                StatusId = order.Status?.StatusId ?? order.StatusId,
+                StatusName = order.Status?.StatusName ?? "",
                 ShippingName = order.ShippingName,
                 ShippingPhone = order.ShippingPhone,
                 ShippingAddressLine = order.ShippingAddressLine,
                 ShippingCity = order.ShippingCity,
+                ShippingDistrict = order.ShippingDistrict,
                 ShippingWard = order.ShippingWard,
                 ShippingMethod = order.ShippingMethod,
                 ShippingFee = order.ShippingFee,
@@ -2089,7 +2173,10 @@ namespace BLL.Services
             {
                 RefundId = refund.RefundId,
                 OrderId = refund.OrderId,
+                OrderCode = $"ORD{refund.OrderId:D6}",
                 AccountId = refund.AccountId,
+                CustomerName = refund.Account?.AccountName,
+                CustomerEmail = refund.Account?.Email,
                 RefundMode = refund.RefundMode,
                 RefundStatus = refund.RefundStatus,
                 TotalAmount = refund.TotalAmount,
@@ -2318,13 +2405,16 @@ namespace BLL.Services
         /// <summary>
         /// Send order status notification to customer (system-generated)
         /// </summary>
-        private async Task SendOrderStatusNotificationAsync(int orderId, int accountId, string statusName, string orderCode)
+        private async Task SendOrderStatusNotificationAsync(DAL.Models.Order order, string statusName, string orderCode)
         {
+            var orderId = order.OrderId;
+            var accountId = order.AccountId;
             try
             {
                 string? templateCode = statusName switch
                 {
                     OrderStatusNames.Processing => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
+                    OrderStatusNames.Confirmed => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
                     OrderStatusNames.Shipped => NotificationConstants.SystemOnlyTemplateCodes.OrderShipped,
                     OrderStatusNames.Delivered => NotificationConstants.SystemOnlyTemplateCodes.OrderDelivered,
                     OrderStatusNames.Cancelled => NotificationConstants.SystemOnlyTemplateCodes.OrderCancelled,
@@ -2333,6 +2423,35 @@ namespace BLL.Services
 
                 if (templateCode == null)
                     return;
+
+                // Build parameters — ShippingName & TotalAmount are already on the entity, no extra query
+                var parameters = new Dictionary<string, string>
+                {
+                    { "orderId",      orderId.ToString() },
+                    { "OrderId",      orderId.ToString() },
+                    { "orderCode",    orderCode },
+                    { "status",       statusName },
+                    { "customerName", order.ShippingName ?? string.Empty },
+                    { "totalAmount",  order.TotalAmount.ToString("N0") },
+                    { "TotalAmount",  order.TotalAmount.ToString("N0") },
+                };
+
+                // For shipped orders, load tracking info from ShippingProviderTransaction
+                if (statusName == OrderStatusNames.Shipped)
+                {
+                    var shipping = await _context.ShippingProviderTransactions
+                        .Where(s => s.OrderId == orderId)
+                        .OrderByDescending(s => s.CreatedAt)
+                        .FirstOrDefaultAsync();
+
+                    var trackingCode = shipping?.TrackingNumber ?? shipping?.ProviderOrderCode ?? string.Empty;
+                    var shippingUnit = shipping?.Provider ?? string.Empty;
+
+                    parameters["trackingCode"] = trackingCode;
+                    parameters["TrackingNumber"] = trackingCode;
+                    parameters["shippingUnit"] = shippingUnit;
+                    parameters["ShippingUnit"] = shippingUnit;
+                }
 
                 var payload = JsonSerializer.Serialize(new
                 {
@@ -2349,11 +2468,7 @@ namespace BLL.Services
                         TemplateCode = templateCode,
                         TargetType = NotificationConstants.TargetTypes.User,
                         TargetUserId = accountId,
-                        Parameters = new Dictionary<string, string>
-                        {
-                            { "orderCode", orderCode },
-                            { "status", statusName }
-                        },
+                        Parameters = parameters,
                         Payload = payload
                     },
                     createdByAccountId: 0, // System account

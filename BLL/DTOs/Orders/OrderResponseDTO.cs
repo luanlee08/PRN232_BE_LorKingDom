@@ -3,6 +3,7 @@ namespace BLL.DTOs.Orders
     public class OrderDto
     {
         public int OrderId { get; set; }
+        public string? OrderCode { get; set; }
         public int AccountId { get; set; }
         public string? AccountName { get; set; }
         public int? VoucherId { get; set; }
@@ -83,7 +84,10 @@ namespace BLL.DTOs.Orders
     {
         public long RefundId { get; set; }
         public int OrderId { get; set; }
+        public string OrderCode { get; set; } = null!;
         public int AccountId { get; set; }
+        public string? CustomerName { get; set; }
+        public string? CustomerEmail { get; set; }
         public string RefundMode { get; set; } = null!;
         public string RefundStatus { get; set; } = null!;
         public decimal TotalAmount { get; set; }
