@@ -178,13 +178,13 @@ namespace BLL.Services
                 };
             }
 
-            if (request.TargetType == "User" && !request.TargetUserId.HasValue)
+            if (request.TargetType == "User" && (request.TargetUserIds == null || !request.TargetUserIds.Any()))
             {
                 return new ApiResponse<int>
                 {
                     Status = 400,
                     StatusMessage = "FAILED",
-                    Message = "TargetUserId là bắt buộc khi TargetType = 'User'"
+                    Message = "TargetUserIds là bắt buộc khi TargetType = 'User'"
                 };
             }
 
@@ -359,7 +359,7 @@ namespace BLL.Services
                 {
                     TemplateCode = "REVIEW_REJECTED",
                     TargetType = "User",
-                    TargetUserId = accountId,
+                    TargetUserIds = new List<int> { accountId },
                     Parameters = parameters,
                     Payload = JsonSerializer.Serialize(new { reviewId, productName, reason }, new JsonSerializerOptions
                     {
@@ -527,7 +527,7 @@ namespace BLL.Services
                     .Select(a => a.AccountId)
                     .ToListAsync(),
 
-                "User" => new List<int> { request.TargetUserId!.Value },
+                "User" => request.TargetUserIds ?? new List<int>(),
 
                 "Condition" => await GetUsersByCondition(request.ConditionJson),
 

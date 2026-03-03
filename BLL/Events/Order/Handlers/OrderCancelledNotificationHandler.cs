@@ -34,7 +34,7 @@ namespace BLL.Events.Order.Handlers
                 {
                     TemplateCode = "ORDER_CANCELLED",
                     TargetType = "User",
-                    TargetUserId = e.AccountId,
+                    TargetUserIds = new List<int> { e.AccountId },
                     Parameters = new Dictionary<string, string>
                     {
                         ["orderId"] = e.OrderId.ToString(),
@@ -46,19 +46,25 @@ namespace BLL.Events.Order.Handlers
                 createdByAccountId: 0,
                 isSystemGenerated: true);
 
-            // If the customer already paid, send a separate refund notification
+            // If the customer already paid, send a refund-pending notification
             if (e.HasPaymentToRefund)
             {
                 await _notificationService.SendNotificationAsync(
                     new SendNotificationRequest
                     {
-                        TemplateCode = "ORDER_UPDATE",
+                        // Use ORDER_CANCELLED template for now — replace with REFUND_PENDING
+                        // when that template is seeded in the DB
+                        TemplateCode = "ORDER_CANCELLED",
+                        Title = $"Đơn hàng #{e.OrderId:D6} — Hoàn tiền đang xử lý",
+                        Message = $"Số tiền {e.TotalAmount:N0}₫ sẽ được hoàn vào ví trong vòng 1-3 ngày làm việc.",
                         TargetType = "User",
-                        TargetUserId = e.AccountId,
+                        TargetUserIds = new List<int> { e.AccountId },
+                        ActionType = "url",
+                        ActionTarget = $"/orders/{e.OrderId}",
                         Parameters = new Dictionary<string, string>
                         {
                             ["orderId"] = e.OrderId.ToString(),
-                            ["refundNote"] = $"Hoàn tiền {e.TotalAmount:N0} VND đang được xử lý"
+                            ["totalAmount"] = e.TotalAmount.ToString("N0")
                         },
                         Payload = $"{{\"type\":\"payment\",\"orderId\":{e.OrderId},\"link\":\"/orders/{e.OrderId}\"}}"
                     },

@@ -448,7 +448,7 @@ namespace BLL.Services
                         {
                             TemplateCode = NotificationConstants.SystemOnlyTemplateCodes.OrderCreated,
                             TargetType = NotificationConstants.TargetTypes.User,
-                            TargetUserId = accountId,
+                            TargetUserIds = new List<int> { accountId },
                             Parameters = new Dictionary<string, string>
                             {
                                 { "orderCode", orderCode },
@@ -2467,7 +2467,7 @@ namespace BLL.Services
                     {
                         TemplateCode = templateCode,
                         TargetType = NotificationConstants.TargetTypes.User,
-                        TargetUserId = accountId,
+                        TargetUserIds = new List<int> { accountId },
                         Parameters = parameters,
                         Payload = payload
                     },
@@ -2512,7 +2512,7 @@ namespace BLL.Services
                     {
                         TemplateCode = templateCode,
                         TargetType = NotificationConstants.TargetTypes.User,
-                        TargetUserId = accountId,
+                        TargetUserIds = new List<int> { accountId },
                         Parameters = new Dictionary<string, string>
                         {
                             { "orderCode", orderCode },

@@ -49,7 +49,7 @@ namespace BLL.Events.Order.Handlers
                 {
                     TemplateCode = templateCode,
                     TargetType = "User",
-                    TargetUserId = e.AccountId,
+                    TargetUserIds = new List<int> { e.AccountId },
                     Parameters = new Dictionary<string, string>
                     {
                         ["orderId"] = e.OrderId.ToString(),

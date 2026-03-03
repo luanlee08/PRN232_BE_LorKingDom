@@ -30,7 +30,7 @@ namespace BLL.Helpers.Notification
             {
                 NotificationConstants.TargetTypes.All => await GetAllActiveUsersAsync(),
                 NotificationConstants.TargetTypes.Role => await GetUsersByRoleAsync(request.TargetRoleId),
-                NotificationConstants.TargetTypes.User => GetSingleUser(request.TargetUserId),
+                NotificationConstants.TargetTypes.User => GetTargetUsers(request.TargetUserIds),
                 NotificationConstants.TargetTypes.Condition => await GetUsersByConditionAsync(request.ConditionJson),
                 _ => new List<int>()
             };
@@ -65,17 +65,17 @@ namespace BLL.Helpers.Notification
         }
 
         /// <summary>
-        /// Get single user
+        /// Get target users from multi-select user IDs list
         /// </summary>
-        private List<int> GetSingleUser(int? userId)
+        private List<int> GetTargetUsers(List<int>? userIds)
         {
-            if (!userId.HasValue)
+            if (userIds == null || !userIds.Any())
             {
-                _logger.LogWarning("UserId is null when getting single user");
+                _logger.LogWarning("TargetUserIds is null or empty when getting user targets");
                 return new List<int>();
             }
 
-            return new List<int> { userId.Value };
+            return userIds.Distinct().ToList();
         }
 
         /// <summary>

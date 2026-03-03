@@ -1,8 +1,10 @@
 ﻿using BLL.DTOs;
 using BLL.DTOs.Notifications;
 using BLL.Interfaces.Notification;
+using DAL.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace PRN232_LorKingDom.Controllers.Admin
@@ -14,15 +16,18 @@ namespace PRN232_LorKingDom.Controllers.Admin
     {
         private readonly INotificationQueryService _queryService;
         private readonly INotificationCommandService _commandService;
+        private readonly AspLorKingDomContext _dbContext;
         private readonly ILogger<ANotificationController> _logger;
 
         public ANotificationController(
             INotificationQueryService queryService,
             INotificationCommandService commandService,
+            AspLorKingDomContext dbContext,
             ILogger<ANotificationController> logger)
         {
             _queryService = queryService;
             _commandService = commandService;
+            _dbContext = dbContext;
             _logger = logger;
         }
 
@@ -76,6 +81,75 @@ namespace PRN232_LorKingDom.Controllers.Admin
         {
             var result = await _queryService.GetStatsAsync();
             return StatusCode(result.Status, result);
+        }
+
+        /// <summary>
+        /// Get all active templates available for admin (excludes system-only templates)
+        /// </summary>
+        [HttpGet("templates")]
+        public async Task<ActionResult<ApiResponse<List<TemplateDto>>>> GetAdminTemplates()
+        {
+            var templates = await _dbContext.Templates
+                .Where(t => t.IsActive)
+                .OrderBy(t => t.TemplateCode)
+                .Select(t => new TemplateDto
+                {
+                    TemplateCode = t.TemplateCode,
+                    Title = t.TitleTemplate,
+                    Message = t.MessageTemplate
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponse<List<TemplateDto>>
+            {
+                Status = 200,
+                StatusMessage = "SUCCESS",
+                Data = templates
+            });
+        }
+
+        /// <summary>
+        /// Search users by name / email / phone for notification targeting
+        /// </summary>
+        [HttpGet("users/search")]
+        public async Task<ActionResult<ApiResponse<List<AccountSearchResult>>>> SearchUsers(
+            [FromQuery] string? q,
+            [FromQuery] int pageSize = 10)
+        {
+            pageSize = Math.Clamp(pageSize, 1, 50);
+
+            var keyword = (q ?? string.Empty).Trim().ToLower();
+
+            var query = _dbContext.Accounts
+                .Where(a => !a.IsDeleted && a.Status == "Active");
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(a =>
+                    a.AccountName.ToLower().Contains(keyword) ||
+                    a.Email.ToLower().Contains(keyword) ||
+                    (a.PhoneNumber != null && a.PhoneNumber.Contains(keyword)));
+            }
+
+            var results = await query
+                .OrderBy(a => a.AccountName)
+                .Take(pageSize)
+                .Select(a => new AccountSearchResult
+                {
+                    AccountId = a.AccountId,
+                    AccountName = a.AccountName,
+                    Email = a.Email,
+                    PhoneNumber = a.PhoneNumber,
+                    Image = a.Image
+                })
+                .ToListAsync();
+
+            return Ok(new ApiResponse<List<AccountSearchResult>>
+            {
+                Status = 200,
+                StatusMessage = "SUCCESS",
+                Data = results
+            });
         }
     }
 }
