@@ -129,6 +129,9 @@ namespace BLL
             // Template
             services.AddScoped<ITemplateService, TemplateService>();
 
+            // Campaign
+            services.AddScoped<ICampaignService, CampaignService>();
+
             // Order
             services.AddScoped<IOrderService, OrderService>();
 

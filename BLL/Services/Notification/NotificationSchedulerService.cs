@@ -97,6 +97,10 @@ namespace BLL.Services.Notification
                 Title = title,
                 Message = message,
                 Payload = payload,
+                ImageUrl = request.ImageUrl,
+                ActionType = string.IsNullOrWhiteSpace(request.ActionType) ? null : request.ActionType,
+                ActionTarget = string.IsNullOrWhiteSpace(request.ActionTarget) ? null : request.ActionTarget,
+                CampaignId = request.CampaignId,
                 Status = NotificationConstants.DeliveryStatus.Unread,
                 CreatedAt = DateTime.UtcNow
             }).ToList();

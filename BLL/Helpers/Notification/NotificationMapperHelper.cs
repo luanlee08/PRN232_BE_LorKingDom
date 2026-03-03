@@ -25,6 +25,9 @@ namespace BLL.Helpers.Notification
                 Title = delivery.Title,
                 Message = delivery.Message,
                 Payload = delivery.Payload,
+                ImageUrl = delivery.ImageUrl,
+                ActionType = delivery.ActionType,
+                ActionTarget = delivery.ActionTarget,
                 Status = delivery.Status,
                 CreatedAt = delivery.CreatedAt
             };

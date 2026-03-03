@@ -25,6 +25,10 @@ public partial class AspLorKingDomContext : DbContext
 
     public virtual DbSet<BackgroundJob> BackgroundJobs { get; set; }
 
+    public virtual DbSet<Campaign> Campaigns { get; set; }
+
+    public virtual DbSet<CampaignTarget> CampaignTargets { get; set; }
+
     public virtual DbSet<BlogCategory> BlogCategories { get; set; }
 
     public virtual DbSet<BlogPost> BlogPosts { get; set; }
@@ -38,6 +42,8 @@ public partial class AspLorKingDomContext : DbContext
     public virtual DbSet<Category> Categories { get; set; }
 
     public virtual DbSet<Delivery> Deliveries { get; set; }
+
+    public virtual DbSet<DeliveryAction> DeliveryActions { get; set; }
 
     public virtual DbSet<EmailOtp> EmailOtps { get; set; }
 
@@ -327,6 +333,55 @@ public partial class AspLorKingDomContext : DbContext
                 .HasConstraintName("FK_Categories_SuperCategories");
         });
 
+        modelBuilder.Entity<Campaign>(entity =>
+        {
+            entity.HasKey(e => e.CampaignId);
+            entity.ToTable("Campaigns", "Notification");
+
+            entity.Property(e => e.CampaignId).HasColumnName("CampaignID");
+            entity.Property(e => e.CampaignName).HasMaxLength(255);
+            entity.Property(e => e.TemplateCode).HasMaxLength(50).IsUnicode(false);
+            entity.Property(e => e.TitleOverride).HasMaxLength(255);
+            entity.Property(e => e.MessageOverride).HasMaxLength(500);
+            entity.Property(e => e.SourceType).HasMaxLength(10).IsUnicode(false).HasDefaultValue("ADMIN");
+            entity.Property(e => e.TargetType).HasMaxLength(10).IsUnicode(false).HasDefaultValue("ALL");
+            entity.Property(e => e.Status).HasMaxLength(15).IsUnicode(false).HasDefaultValue("Draft");
+            entity.Property(e => e.ScheduledAt).HasPrecision(0);
+            entity.Property(e => e.EventKey).HasMaxLength(100).IsUnicode(false);
+            entity.Property(e => e.ImageUrl).HasMaxLength(500);
+            entity.Property(e => e.ActionType).HasMaxLength(20);
+            entity.Property(e => e.ActionTarget).HasMaxLength(500);
+            entity.Property(e => e.CreatedByAccountId).HasColumnName("CreatedByAccountID");
+            entity.Property(e => e.CreatedAt).HasPrecision(0).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.UpdatedAt).HasPrecision(0);
+
+            entity.HasOne(d => d.CreatedByAccount).WithMany()
+                .HasForeignKey(d => d.CreatedByAccountId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Campaigns_Accounts");
+
+            entity.HasOne(d => d.TemplateCodeNavigation).WithMany()
+                .HasPrincipalKey(p => p.TemplateCode)
+                .HasForeignKey(d => d.TemplateCode)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_Campaigns_Templates");
+        });
+
+        modelBuilder.Entity<CampaignTarget>(entity =>
+        {
+            entity.HasKey(e => e.CampaignTargetId);
+            entity.ToTable("CampaignTargets", "Notification");
+
+            entity.Property(e => e.CampaignTargetId).HasColumnName("CampaignTargetID");
+            entity.Property(e => e.CampaignId).HasColumnName("CampaignID");
+            entity.Property(e => e.TargetValue).HasMaxLength(200).IsUnicode(false);
+
+            entity.HasOne(d => d.Campaign).WithMany(p => p.CampaignTargets)
+                .HasForeignKey(d => d.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_CampaignTargets_Campaigns");
+        });
+
         modelBuilder.Entity<Delivery>(entity =>
         {
             entity.HasKey(e => e.DeliveryId).HasName("PK__Deliveri__626D8FEE003E29AE");
@@ -337,12 +392,16 @@ public partial class AspLorKingDomContext : DbContext
 
             entity.Property(e => e.DeliveryId).HasColumnName("DeliveryID");
             entity.Property(e => e.AccountId).HasColumnName("AccountID");
+            entity.Property(e => e.CampaignId).HasColumnName("CampaignID");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(0)
                 .HasDefaultValueSql("(getdate())");
             entity.Property(e => e.CreatedByJobId).HasColumnName("CreatedByJobID");
             entity.Property(e => e.Message).HasMaxLength(500);
             entity.Property(e => e.Payload).HasMaxLength(1000);
+            entity.Property(e => e.ImageUrl).HasMaxLength(500);
+            entity.Property(e => e.ActionType).HasMaxLength(20);
+            entity.Property(e => e.ActionTarget).HasMaxLength(500);
             entity.Property(e => e.Status)
                 .HasMaxLength(10)
                 .IsUnicode(false)
@@ -366,6 +425,37 @@ public partial class AspLorKingDomContext : DbContext
                 .HasForeignKey(d => d.TemplateCode)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_NotificationDeliveries_Templates");
+
+            entity.HasOne(d => d.Campaign).WithMany(p => p.Deliveries)
+                .HasForeignKey(d => d.CampaignId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_NotificationDeliveries_Campaigns");
+        });
+
+        modelBuilder.Entity<DeliveryAction>(entity =>
+        {
+            entity.HasKey(e => e.ActionId);
+            entity.ToTable("DeliveryActions", "Notification");
+
+            entity.HasIndex(e => e.DeliveryId, "IX_DeliveryActions_DeliveryID");
+            entity.HasIndex(e => new { e.AccountId, e.ActionType }, "IX_DeliveryActions_AccountID_ActionType");
+
+            entity.Property(e => e.ActionId).HasColumnName("ActionID");
+            entity.Property(e => e.DeliveryId).HasColumnName("DeliveryID");
+            entity.Property(e => e.AccountId).HasColumnName("AccountID");
+            entity.Property(e => e.ActionType).HasMaxLength(10).IsUnicode(false);
+            entity.Property(e => e.ActionTarget).HasMaxLength(500);
+            entity.Property(e => e.OccurredAt).HasPrecision(0).HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.Delivery).WithMany(p => p.DeliveryActions)
+                .HasForeignKey(d => d.DeliveryId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_DeliveryActions_Deliveries");
+
+            entity.HasOne(d => d.Account).WithMany()
+                .HasForeignKey(d => d.AccountId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_DeliveryActions_Accounts");
         });
 
         modelBuilder.Entity<EmailOtp>(entity =>

@@ -140,13 +140,13 @@ namespace BLL.Services.Notification
                 };
             }
 
-            if (request.TargetType == NotificationConstants.TargetTypes.User && !request.TargetUserId.HasValue)
+            if (request.TargetType == NotificationConstants.TargetTypes.User && (request.TargetUserIds == null || !request.TargetUserIds.Any()))
             {
                 return new ApiResponse<int>
                 {
                     Status = 400,
                     StatusMessage = "FAILED",
-                    Message = "TargetUserId là bắt buộc khi TargetType = 'User'"
+                    Message = "TargetUserIds là bắt buộc và không được rỗng khi TargetType = 'User'"
                 };
             }
 
@@ -281,7 +281,7 @@ namespace BLL.Services.Notification
                 {
                     TemplateCode = templateCode,
                     TargetType = NotificationConstants.TargetTypes.User,
-                    TargetUserId = accountId,
+                    TargetUserIds = new List<int> { accountId },
                     Parameters = parameters,
                     Payload = JsonSerializer.Serialize(new { reviewId, productName, reason }, new JsonSerializerOptions
                     {
