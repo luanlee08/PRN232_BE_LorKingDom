@@ -11,5 +11,8 @@ namespace BLL.Interfaces
         Task<ApiResponse<LoginResponse>> LoginAsync(LoginRequest request);
         Task<ApiResponse<LoginResponse>> RefreshTokenAsync(string refreshToken);
         Task<ApiResponse<bool>> LogoutAsync(string accessToken);
+        Task<ApiResponse<LoginResponse>> GoogleLoginAsync(GoogleAuthRequest request);
+        Task<ApiResponse<LoginResponse>> GoogleRegisterAsync(GoogleAuthRequest request);
+        Task<ApiResponse<bool>> ChangePasswordAsync(int accountId, ChangePasswordRequest request);
     }
 }
