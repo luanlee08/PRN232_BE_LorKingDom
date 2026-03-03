@@ -18,6 +18,9 @@ namespace DAL.Interface
         Task<(List<Product> Items, int Total)> QueryStorefrontPagedAsync(
      string? keyword, int page, int pageSize, int? priceRangeId = null);
         Task<(List<Product> Items, int Total)> QueryAdminPagedAsync(string? keyword, int page, int pageSize);
+            
+        Task<List<Product>> GetAvailableProductsAsync(string? keyword);
+
 
     }
 }

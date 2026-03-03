@@ -155,6 +155,35 @@ namespace DAL.Repositories
 
             return (items, total);
         }
+        public async Task<List<Product>> GetAvailableProductsAsync(string? keyword)
+        {
+            var q = _ctx.Products
+                .AsNoTracking()
+                .Include(p => p.Category)
+                .Include(p => p.Brand)
+                .Include(p => p.Material)
+                .Include(p => p.Age)
+                .Include(p => p.Sex)
+                .Include(p => p.Origin)
+                .Include(p => p.ProductImages)
+                .Where(p =>
+                    p.IsDeleted == false &&
+                    p.ProductStatus == "Available" &&
+                    p.Quantity > 0
+                );
 
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var k = keyword.Trim();
+                q = q.Where(p =>
+                    p.ProductName.Contains(k) ||
+                    (p.Sku != null && p.Sku.Contains(k))
+                );
+            }
+
+            return await q
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+        }
     }
 }
