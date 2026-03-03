@@ -47,6 +47,7 @@ namespace BLL.Services
                     Image = account.Image,
                     RoleId = account.RoleId,
                     RoleName = account.Role?.RoleName,
+                    Provider = account.Provider,
                     CreatedAt = account.CreatedAt,
                     UpdatedAt = account.UpdatedAt
                 }

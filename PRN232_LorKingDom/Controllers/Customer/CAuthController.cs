@@ -57,5 +57,31 @@ namespace PRN232_LorKingDom.Controllers.Customer
             var result = await _authService.LogoutAsync(token);
             return StatusCode(result.Status, result);
         }
+
+        [HttpPost("google-login")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleAuthRequest request)
+        {
+            var result = await _authService.GoogleLoginAsync(request);
+            return StatusCode(result.Status, result);
+        }
+
+        [HttpPost("google-register")]
+        public async Task<IActionResult> GoogleRegister([FromBody] GoogleAuthRequest request)
+        {
+            var result = await _authService.GoogleRegisterAsync(request);
+            return StatusCode(result.Status, result);
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var accountIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out int accountId))
+                return Unauthorized();
+
+            var result = await _authService.ChangePasswordAsync(accountId, request);
+            return StatusCode(result.Status, result);
+        }
     }
 }
