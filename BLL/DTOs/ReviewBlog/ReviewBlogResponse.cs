@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BLL.DTOs.ReviewBlogReply;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,5 +18,6 @@ namespace BLL.DTOs.ReviewBlog
         public string? Comment { get; set; }
         public bool IsBlocked { get; set; }
         public DateTime CreatedAt { get; set; }
+        public required List<ReviewBlogReplyResponse> Replies { get; set; }
     }
 }
