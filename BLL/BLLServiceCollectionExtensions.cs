@@ -50,6 +50,7 @@ namespace BLL
             // Blog 
             services.AddScoped<IReviewBlogService, ReviewBlogService>();
             services.AddScoped<IReviewBlogReactionService, ReviewBlogReactionService>();
+            services.AddScoped<IReviewBlogReplyService, ReviewBlogReplyService>();
 
             // Cart
             services.AddScoped<ICartService, CartServices>();

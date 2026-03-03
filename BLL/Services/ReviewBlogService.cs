@@ -1,5 +1,6 @@
 ﻿using BLL.DTOs;
 using BLL.DTOs.ReviewBlog;
+using BLL.DTOs.ReviewBlogReply;
 using BLL.Interfaces;
 using DAL.Interface;
 using DAL.Models;
@@ -79,23 +80,34 @@ namespace BLL.Services
                 ReviewBlogId = r.ReviewBlogId,
                 AccountId = r.AccountId,
 
-                // Lấy tên thay vì email
-                CustomerName = string.IsNullOrEmpty(r.Account.AccountName)
-                    ? r.Account.Email
+                CustomerName = string.IsNullOrEmpty(r.Account?.AccountName)
+                    ? r.Account?.Email
                     : r.Account.AccountName,
 
                 Rating = r.Rating,
 
-                // Tính từ bảng reaction
-                LikeCount = r.ReviewBlogReactions
-                    .Count(x => x.ReactionType == "Like"),
+                LikeCount = r.ReviewBlogReactions?
+                    .Count(x => x.ReactionType == "Like") ?? 0,
 
-                DislikeCount = r.ReviewBlogReactions
-                    .Count(x => x.ReactionType == "Dislike"),
+                DislikeCount = r.ReviewBlogReactions?
+                    .Count(x => x.ReactionType == "Dislike") ?? 0,
 
                 Comment = r.Comment,
                 IsBlocked = r.IsBlocked,
-                CreatedAt = r.CreatedAt
+                CreatedAt = r.CreatedAt,
+
+                Replies = r.ReviewBlogReplies?
+                    .OrderBy(x => x.CreatedAt)
+                    .Select(x => new ReviewBlogReplyResponse
+                    {
+                        ReplyBlogId = x.ReplyBlogId,
+                        AccountId = x.AccountId,
+                        AccountName = string.IsNullOrEmpty(x.Account?.AccountName)
+                            ? x.Account?.Email
+                            : x.Account.AccountName,
+                        Content = x.Content,
+                        CreatedAt = x.CreatedAt
+                    }).ToList() ?? new List<ReviewBlogReplyResponse>()
             }).ToList();
 
             return new ApiResponse<List<ReviewBlogResponse>>
@@ -117,19 +129,29 @@ namespace BLL.Services
             var total = await query.CountAsync();
 
             var data = await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(x => new ReviewBlogAdminDto
-                {
-                    ReviewBlogId = x.ReviewBlogId,
-                    BlogTitle = x.BlogPost.BlogTitle,
-                    AccountEmail = x.Account.Email,
-                    Rating = x.Rating,
-                    Comment = x.Comment,
-                    IsBlocked = x.IsBlocked,
-                    CreatedAt = x.CreatedAt
-                })
-                .ToListAsync();
+    .Skip((page - 1) * pageSize)
+    .Take(pageSize)
+    .Select(x => new ReviewBlogAdminDto
+    {
+        ReviewBlogId = x.ReviewBlogId,
+
+        AccountId = x.AccountId, // 🔥 thêm
+
+        AccountName = string.IsNullOrEmpty(x.Account.AccountName)
+            ? x.Account.Email
+            : x.Account.AccountName,  // 🔥 lấy tên hoặc email fallback
+
+        AccountEmail = x.Account.Email,
+
+        BlogTitle = x.BlogPost.BlogTitle,
+
+        Rating = x.Rating,
+        Comment = x.Comment,
+
+        IsBlocked = x.IsBlocked,
+        CreatedAt = x.CreatedAt
+    })
+    .ToListAsync();
 
             return new ApiResponse<PagedResult<ReviewBlogAdminDto>>
             {
