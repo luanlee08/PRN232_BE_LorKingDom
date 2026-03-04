@@ -125,6 +125,13 @@ public class SepayService : ISepayService
     {
         try
         {
+            // 🔧 Bypass signature validation in test/mock mode (same as CreatePaymentAsync)
+            if (_merchantId.StartsWith("SP-TEST"))
+            {
+                Console.WriteLine($"[Sepay] ✅ Mock mode — skipping signature validation for order {callback.order_id}");
+                return true;
+            }
+
             // Tạo raw signature từ callback data
             var rawData = $"{callback.order_id}|{callback.transaction_id}|{callback.amount:F0}|{callback.status}|{callback.timestamp}";
             var expectedSignature = HmacSHA256(_secretKey, rawData);
