@@ -9,9 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Order
 {
-    /// <summary>
-    /// Service for handling Order refund operations
-    /// </summary>
+
     public class OrderRefundService : IOrderRefundService
     {
         private readonly AspLorKingDomContext _context;

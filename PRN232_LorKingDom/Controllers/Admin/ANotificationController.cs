@@ -31,9 +31,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             _logger = logger;
         }
 
-        /// <summary>
-        /// Get all delivered notifications with filtering and pagination (Admin view)
-        /// </summary>
+
         [HttpGet]
         public async Task<ActionResult<ApiResponse<PagedResult<DeliveryResponse>>>> GetNotifications([FromQuery] DeliveryQuery query)
         {
@@ -41,9 +39,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Get delivery by ID
-        /// </summary>
+
         [HttpGet("{id}")]
         public async Task<ActionResult<ApiResponse<DeliveryResponse>>> GetNotificationById(long id)
         {
@@ -51,9 +47,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Send notification (creates delivery records for target users)
-        /// </summary>
+
         [HttpPost]
         public async Task<ActionResult<ApiResponse<int>>> SendNotification([FromBody] SendNotificationRequest request)
         {
@@ -73,9 +67,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Get notification delivery statistics
-        /// </summary>
+
         [HttpGet("stats")]
         public async Task<ActionResult<ApiResponse<DeliveryStatsResponse>>> GetStats()
         {
@@ -83,9 +75,6 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Get all active templates available for admin (excludes system-only templates)
-        /// </summary>
         [HttpGet("templates")]
         public async Task<ActionResult<ApiResponse<List<TemplateDto>>>> GetAdminTemplates()
         {
@@ -108,9 +97,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             });
         }
 
-        /// <summary>
-        /// Search users by name / email / phone for notification targeting
-        /// </summary>
+
         [HttpGet("users/search")]
         public async Task<ActionResult<ApiResponse<List<AccountSearchResult>>>> SearchUsers(
             [FromQuery] string? q,

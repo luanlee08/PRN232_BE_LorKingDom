@@ -117,8 +117,7 @@ namespace BLL
             services.AddScoped<NotificationTargetHelper>();
             services.AddScoped<NotificationContentHelper>();
 
-            // Notification - Keep old service for backward compatibility (will be deprecated)
-            services.AddScoped<INotificationService, NotificationService>();
+
 
             // =========================================================
             // Domain Events
@@ -140,8 +139,6 @@ namespace BLL
             // Campaign
             services.AddScoped<ICampaignService, CampaignService>();
 
-            // Order
-            services.AddScoped<IOrderService, OrderService>();
 
             // Workers
             services.AddScoped<NotificationWorker>();

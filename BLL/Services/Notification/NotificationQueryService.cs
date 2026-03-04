@@ -6,9 +6,7 @@ using DAL.Interface;
 
 namespace BLL.Services.Notification
 {
-    /// <summary>
-    /// Service for querying notification deliveries (Read operations)
-    /// </summary>
+
     public class NotificationQueryService : INotificationQueryService
     {
         private readonly INotificationRepository _notificationRepo;
@@ -22,9 +20,7 @@ namespace BLL.Services.Notification
             _mapperHelper = mapperHelper;
         }
 
-        /// <summary>
-        /// Get deliveries with filtering and pagination (Admin)
-        /// </summary>
+
         public async Task<ApiResponse<PagedResult<DeliveryResponse>>> GetDeliveriesAsync(DeliveryQuery query)
         {
             var (items, total) = await _notificationRepo.GetDeliveriesAsync(
@@ -52,9 +48,7 @@ namespace BLL.Services.Notification
             };
         }
 
-        /// <summary>
-        /// Get delivery by ID
-        /// </summary>
+
         public async Task<ApiResponse<DeliveryResponse>> GetDeliveryByIdAsync(long id)
         {
             var delivery = await _notificationRepo.GetDeliveryByIdAsync(id);
@@ -78,9 +72,7 @@ namespace BLL.Services.Notification
             };
         }
 
-        /// <summary>
-        /// Get notification statistics
-        /// </summary>
+
         public async Task<ApiResponse<DeliveryStatsResponse>> GetStatsAsync()
         {
             var stats = await _notificationRepo.GetStatsAsync();
@@ -101,9 +93,7 @@ namespace BLL.Services.Notification
             };
         }
 
-        /// <summary>
-        /// Get user's notifications with filtering and pagination
-        /// </summary>
+
         public async Task<ApiResponse<PagedResult<DeliveryResponse>>> GetUserNotificationsAsync(int accountId, UserNotificationQuery query)
         {
             var (items, total) = await _notificationRepo.GetUserDeliveriesAsync(
@@ -125,9 +115,7 @@ namespace BLL.Services.Notification
             };
         }
 
-        /// <summary>
-        /// Get count of unread notifications for user
-        /// </summary>
+
         public async Task<ApiResponse<int>> GetUnreadCountAsync(int accountId)
         {
             var count = await _notificationRepo.GetUnreadCountAsync(accountId);

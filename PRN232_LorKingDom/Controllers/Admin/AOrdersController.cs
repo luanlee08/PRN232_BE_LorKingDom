@@ -1,6 +1,7 @@
 using BLL.DTOs;
 using BLL.DTOs.Orders;
 using BLL.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -8,7 +9,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
 {
     [Route("api/admin/orders")]
     [ApiController]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public class AOrdersController : ControllerBase
     {
         private readonly IOrderService _orderService;

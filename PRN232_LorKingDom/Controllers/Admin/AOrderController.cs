@@ -25,9 +25,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return int.TryParse(accountIdClaim, out var accountId) ? accountId : 0;
         }
-        /// <summary>
-        /// Get all orders (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpGet("admin/all")]
         public async Task<IActionResult> GetAllOrders(
@@ -39,9 +37,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Create shipping order (GHN) for an existing order (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("admin/{orderId}/shipping")]
         public async Task<IActionResult> CreateShippingOrder(
@@ -61,9 +57,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Update order status (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPut("admin/{orderId}/status")]
         public async Task<IActionResult> UpdateOrderStatus(
@@ -80,17 +74,14 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Webhook endpoint for GHN to update shipping status
-        /// </summary>
+
         [AllowAnonymous]
         [HttpPost("webhook/shipping/ghn")]
         public async Task<IActionResult> HandleGHNWebhook([FromBody] GHNWebhookRequest webhookData)
         {
             try
             {
-                // TODO: Add signature verification if GHN provides it
-                // var signature = Request.Headers["X-GHN-Signature"].FirstOrDefault();
+
 
                 var result = await _orderService.HandleShippingWebhookAsync("GHN", webhookData);
                 return StatusCode(result.Status, result);
@@ -101,9 +92,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             }
         }
 
-        /// <summary>
-        /// Manually refresh shipping status from GHN by Shipping ID (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("admin/shipping/{shippingId}/refresh")]
         public async Task<IActionResult> RefreshShippingStatusById(long shippingId)
@@ -156,9 +145,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             }
         }
 
-        /// <summary>
-        /// Manually refresh shipping status from GHN by Order ID (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("admin/{orderId}/shipping/refresh")]
         public async Task<IActionResult> RefreshShippingStatusByOrderId(int orderId)
@@ -211,9 +198,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             }
         }
 
-        /// <summary>
-        /// Get all refund requests (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpGet("admin/refunds")]
         public async Task<IActionResult> GetRefundRequests(
@@ -225,9 +210,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Get refund by ID (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpGet("admin/refunds/{refundId}")]
         public async Task<IActionResult> GetRefundById(long refundId)
@@ -236,9 +219,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Approve or reject refund request (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("admin/refunds/approve")]
         public async Task<IActionResult> ApproveRefund([FromBody] ApproveRefundRequest request)
@@ -253,9 +234,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Handle payment webhook from payment gateway (VNPay, MoMo, etc.)
-        /// </summary>
+
         [AllowAnonymous]
         [HttpPost("webhook/payment/{provider}")]
         public async Task<IActionResult> HandlePaymentWebhook(
@@ -269,9 +248,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Confirm COD payment (Shipper confirms cash collected)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff,Shipper")]
         [HttpPost("{orderId}/cod-confirm")]
         public async Task<IActionResult> ConfirmCODPayment(int orderId)
