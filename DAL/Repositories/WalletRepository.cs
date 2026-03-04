@@ -32,6 +32,13 @@ namespace DAL.Repositories
             return await _context.Wallets.FindAsync(walletId);
         }
 
+        public async Task<Wallet> CreateWalletAsync(Wallet wallet)
+        {
+            await _context.Wallets.AddAsync(wallet);
+            await _context.SaveChangesAsync();
+            return wallet;
+        }
+
         public async Task UpdateWalletAsync(Wallet wallet)
         {
             _context.Wallets.Update(wallet);
@@ -59,15 +66,44 @@ namespace DAL.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<IEnumerable<WalletTransaction>> GetTransactionsByAccountIdAsync(int accountId, int skip, int take)
+        public async Task<WalletTransaction?> GetTransactionByIdempotencyKeyAsync(string idempotencyKey)
         {
             return await _context.WalletTransactions
-                .Include(wt => wt.Wallet)
-                .Where(wt => wt.AccountId == accountId)
+                .FirstOrDefaultAsync(wt => wt.IdempotencyKey == idempotencyKey);
+        }
+
+        public async Task<IEnumerable<WalletTransaction>> GetTransactionsByAccountIdAsync(
+            int accountId, int skip, int take, string? txnType = null, string? direction = null)
+        {
+            var query = _context.WalletTransactions
+                .Where(wt => wt.AccountId == accountId);
+
+            if (!string.IsNullOrEmpty(txnType))
+                query = query.Where(wt => wt.TxnType == txnType);
+
+            if (!string.IsNullOrEmpty(direction))
+                query = query.Where(wt => wt.Direction == direction);
+
+            return await query
                 .OrderByDescending(wt => wt.CreatedAt)
                 .Skip(skip)
                 .Take(take)
                 .ToListAsync();
+        }
+
+        public async Task<int> GetTransactionCountByAccountIdAsync(
+            int accountId, string? txnType = null, string? direction = null)
+        {
+            var query = _context.WalletTransactions
+                .Where(wt => wt.AccountId == accountId);
+
+            if (!string.IsNullOrEmpty(txnType))
+                query = query.Where(wt => wt.TxnType == txnType);
+
+            if (!string.IsNullOrEmpty(direction))
+                query = query.Where(wt => wt.Direction == direction);
+
+            return await query.CountAsync();
         }
     }
 }

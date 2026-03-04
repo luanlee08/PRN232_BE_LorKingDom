@@ -8,11 +8,15 @@ using DAL.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace BLL.Services
@@ -23,17 +27,20 @@ namespace BLL.Services
         private readonly IRedisService _redis;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
+        private readonly IHttpClientFactory _httpClientFactory;
 
         public AuthService(
             IAccountRepository accountRepo,
             IRedisService redis,
             IEmailService emailService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IHttpClientFactory httpClientFactory)
         {
             _accountRepo = accountRepo;
             _redis = redis;
             _emailService = emailService;
             _configuration = configuration;
+            _httpClientFactory = httpClientFactory;
         }
 
         public async Task<ApiResponse<string>> RegisterAsync(RegisterRequest request)
@@ -366,6 +373,174 @@ namespace BLL.Services
             }
         }
 
+        public async Task<ApiResponse<bool>> ChangePasswordAsync(int accountId, ChangePasswordRequest request)
+        {
+            var account = await _accountRepo.GetByIdAsync(accountId);
+
+            if (account == null)
+            {
+                return new ApiResponse<bool> { Status = 404, StatusMessage = "FAILED", Message = "Tài khoản không tồn tại", Data = false };
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, account.Password))
+            {
+                return new ApiResponse<bool> { Status = 400, StatusMessage = "FAILED", Message = "Mật khẩu hiện tại không đúng", Data = false };
+            }
+
+            account.Password = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            account.Provider = "Email";
+            await _accountRepo.SaveChangesAsync();
+
+            return new ApiResponse<bool> { Status = 200, StatusMessage = "SUCCESS", Message = "Đổi mật khẩu thành công", Data = true };
+        }
+
+        public async Task<ApiResponse<LoginResponse>> GoogleLoginAsync(GoogleAuthRequest request)
+        {
+            var googleUser = await VerifyGoogleTokenAsync(request.AccessToken);
+
+            if (googleUser == null)
+            {
+                return new ApiResponse<LoginResponse>
+                {
+                    Status = 400,
+                    StatusMessage = "FAILED",
+                    Message = "Token Google không hợp lệ",
+                    Data = null
+                };
+            }
+
+            var account = await _accountRepo.GetByEmailAsync(googleUser.Email);
+
+            if (account == null)
+            {
+                return new ApiResponse<LoginResponse>
+                {
+                    Status = 404,
+                    StatusMessage = "FAILED",
+                    Message = "Tài khoản chưa có trong hệ thống. Vui lòng đăng ký trước.",
+                    Data = null
+                };
+            }
+
+            if (account.IsDeleted || account.Status != "Active")
+            {
+                return new ApiResponse<LoginResponse>
+                {
+                    Status = 403,
+                    StatusMessage = "FAILED",
+                    Message = "Tài khoản đã bị khóa hoặc chưa kích hoạt",
+                    Data = null
+                };
+            }
+
+            var (accessToken, refreshToken, expiresAt) = await GenerateTokensAsync(account);
+
+            return new ApiResponse<LoginResponse>
+            {
+                Status = 200,
+                StatusMessage = "SUCCESS",
+                Message = "Đăng nhập thành công",
+                Data = new LoginResponse
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresAt = expiresAt,
+                    User = new UserInfo
+                    {
+                        AccountId = account.AccountId,
+                        AccountName = account.AccountName,
+                        Email = account.Email,
+                        PhoneNumber = account.PhoneNumber,
+                        Image = account.Image,
+                        RoleName = account.Role?.RoleName ?? "Customer"
+                    }
+                }
+            };
+        }
+
+        public async Task<ApiResponse<LoginResponse>> GoogleRegisterAsync(GoogleAuthRequest request)
+        {
+            var googleUser = await VerifyGoogleTokenAsync(request.AccessToken);
+
+            if (googleUser == null)
+            {
+                return new ApiResponse<LoginResponse>
+                {
+                    Status = 400,
+                    StatusMessage = "FAILED",
+                    Message = "Token Google không hợp lệ",
+                    Data = null
+                };
+            }
+
+            var existingAccount = await _accountRepo.GetByEmailAsync(googleUser.Email);
+
+            if (existingAccount != null)
+            {
+                if (existingAccount.Provider == "Google")
+                {
+                    return new ApiResponse<LoginResponse>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = "Email này đã được đăng ký bằng Google. Vui lòng đăng nhập.",
+                        Data = null
+                    };
+                }
+
+                return new ApiResponse<LoginResponse>
+                {
+                    Status = 400,
+                    StatusMessage = "FAILED",
+                    Message = "Email này đã được đăng ký bằng phương thức khác. Vui lòng đăng nhập bằng Email.",
+                    Data = null
+                };
+            }
+
+            var defaultPassword = "Customer123@";
+            var account = new Account
+            {
+                AccountName = googleUser.Name ?? googleUser.Email,
+                Email = googleUser.Email,
+                Password = BCrypt.Net.BCrypt.HashPassword(defaultPassword),
+                PhoneNumber = null,
+                Provider = "Google",
+                RoleId = 1,
+                Status = "Active",
+                IsDeleted = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _accountRepo.AddAsync(account);
+            await _accountRepo.SaveChangesAsync();
+
+            await _emailService.SendWelcomeEmailAsync(account.Email, account.AccountName);
+
+            var (accessToken, refreshToken, expiresAt) = await GenerateTokensAsync(account);
+
+            return new ApiResponse<LoginResponse>
+            {
+                Status = 201,
+                StatusMessage = "SUCCESS",
+                Message = "Đăng ký tài khoản thành công",
+                Data = new LoginResponse
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    ExpiresAt = expiresAt,
+                    User = new UserInfo
+                    {
+                        AccountId = account.AccountId,
+                        AccountName = account.AccountName,
+                        Email = account.Email,
+                        PhoneNumber = account.PhoneNumber,
+                        Image = account.Image,
+                        RoleName = account.Role?.RoleName ?? "Customer"
+                    }
+                }
+            };
+        }
+
         // Private helpers
         private string GenerateOtpCode()
         {
@@ -422,6 +597,55 @@ namespace BLL.Services
             public string? PhoneNumber { get; set; }
             public string? Provider { get; set; }
             public string OtpCode { get; set; } = string.Empty;
+        }
+
+        private async Task<GoogleUserInfo?> VerifyGoogleTokenAsync(string accessToken)
+        {
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+                var response = await client.GetAsync("https://www.googleapis.com/oauth2/v3/userinfo");
+
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                var json = await response.Content.ReadAsStringAsync();
+                var payload = JsonSerializer.Deserialize<GoogleTokenPayload>(json);
+
+                if (payload == null || string.IsNullOrEmpty(payload.Email))
+                    return null;
+
+                return new GoogleUserInfo
+                {
+                    Email = payload.Email,
+                    Name = payload.Name ?? payload.Email
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private class GoogleUserInfo
+        {
+            public string Email { get; set; } = string.Empty;
+            public string? Name { get; set; }
+        }
+
+        private class GoogleTokenPayload
+        {
+            [JsonPropertyName("email")]
+            public string? Email { get; set; }
+
+            [JsonPropertyName("name")]
+            public string? Name { get; set; }
+
+            [JsonPropertyName("email_verified")]
+            public bool? EmailVerified { get; set; }
         }
     }
 }

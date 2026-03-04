@@ -156,7 +156,7 @@ namespace BLL.Helpers.Order
 
         /// <summary>
         /// Validate refund request.
-        /// Refund is only valid when order has been Delivered (can transition to Refunded).
+        /// Refund is only valid when order has been Completed (Completed → Refunded is a valid transition).
         /// </summary>
         public (bool IsValid, string? ErrorMessage) ValidateRefundRequest(DAL.Models.Order order, int accountId, decimal refundAmount)
         {
@@ -165,10 +165,11 @@ namespace BLL.Helpers.Order
                 return (false, "Bạn không có quyền yêu cầu hoàn tiền đơn hàng này");
             }
 
-            // Only Delivered orders can be refunded (Delivered → Refunded is a valid transition)
-            if (!OrderStatusTransitions.CanTransition(order.Status.StatusName, OrderStatusNames.Refunded))
+            // Only Completed orders can be refunded by customer
+            var currentStatus = order.Status?.StatusName ?? "";
+            if (!currentStatus.Equals(OrderStatusNames.Completed, StringComparison.OrdinalIgnoreCase))
             {
-                return (false, "Chỉ có thể hoàn tiền đơn hàng đã giao");
+                return (false, "Chỉ có thể hoàn tiền đơn hàng đã hoàn thành");
             }
 
             if (refundAmount > order.TotalAmount)
