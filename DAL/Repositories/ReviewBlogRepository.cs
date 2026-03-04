@@ -31,14 +31,19 @@ namespace DAL.Repositories
         public async Task<ReviewBlog?> GetByIdAsync(int id)
         {
             return await _context.ReviewBlogs
+                .Include(x => x.Account)
+                .Include(x => x.BlogPost)
                 .FirstOrDefaultAsync(r => r.ReviewBlogId == id);
         }
 
         public async Task<List<ReviewBlog>>
-            GetByBlogIdAsync(int blogPostId)
+    GetByBlogIdAsync(int blogPostId)
         {
             return await _context.ReviewBlogs
                 .Include(r => r.Account)
+                .Include(r => r.ReviewBlogReactions)
+                .Include(r => r.ReviewBlogReplies)
+                    .ThenInclude(reply => reply.Account)  
                 .Where(r =>
                     r.BlogPostId == blogPostId &&
                     !r.IsBlocked)
@@ -50,5 +55,6 @@ namespace DAL.Repositories
         {
             await _context.SaveChangesAsync();
         }
+
     }
 }
