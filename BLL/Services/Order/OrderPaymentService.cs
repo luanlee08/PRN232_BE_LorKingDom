@@ -1,6 +1,5 @@
 using BLL.DTOs.Orders;
 using BLL.Helpers.Order;
-using BLL.Interfaces;
 using BLL.Interfaces.Order;
 using DAL.Interface;
 using DAL.Models;
@@ -10,9 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Order
 {
-    /// <summary>
-    /// Service for handling Order payment operations
-    /// </summary>
     public class OrderPaymentService : IOrderPaymentService
     {
         private readonly IOrderRepository _orderRepo;

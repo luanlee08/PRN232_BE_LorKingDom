@@ -27,9 +27,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             var result = await _orderService.GetAvailablePaymentMethodsAsync();
             return StatusCode(result.Status, result);
         }
-        /// <summary>
-        /// Create new order from cart
-        /// </summary>
+
         [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
@@ -44,9 +42,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Get order by ID (customer can only view their own orders)
-        /// </summary>
+
         [Authorize]
         [HttpGet("{orderId}")]
         public async Task<IActionResult> GetOrderById(int orderId)
@@ -78,9 +74,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
         }
 
 
-        /// <summary>
-        /// Cancel order (only Pending/Processing orders)
-        /// </summary>
+
         [Authorize]
         [HttpPost("{orderId}/cancel")]
         public async Task<IActionResult> CancelOrder(int orderId, [FromBody] CancelOrderRequest? request)
@@ -95,9 +89,7 @@ namespace PRN232_LorKingDom.Controllers.Customer
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Create refund request for delivered order
-        /// </summary>
+
         [Authorize]
         [HttpPost("refund/request")]
         public async Task<IActionResult> CreateRefundRequest([FromBody] CreateRefundRequest request)
