@@ -7,9 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Order
 {
-    /// <summary>
-    /// Service for handling payment webhooks from providers
-    /// </summary>
+
     public class OrderWebhookService : IOrderWebhookService
     {
         private readonly AspLorKingDomContext _context;

@@ -7,10 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Worker
 {
-    /// <summary>
-    /// Background worker to sync shipping status from GHN API
-    /// Runs every 5 minutes to check active shipments and update order status
-    /// </summary>
+
     public class ShippingStatusSyncWorker
     {
         private readonly AspLorKingDomContext _context;
@@ -30,13 +27,7 @@ namespace BLL.Worker
             _logger = logger;
         }
 
-        /// <summary>
-        /// Hangfire recurring job to sync GHN shipping status
-        /// - Scans active shipments (Processing or Shipped orders)
-        /// - Calls GHN API to get latest status
-        /// - Updates order status if changed
-        /// - Sends notifications to customers
-        /// </summary>
+
         [AutomaticRetry(Attempts = 3)]
         public async Task SyncGHNShippingStatusJob()
         {
@@ -109,9 +100,7 @@ namespace BLL.Worker
             }
         }
 
-        /// <summary>
-        /// Get active shipments that need status sync
-        /// </summary>
+
         private async Task<List<ShippingProviderTransaction>> GetActiveShippingsAsync()
         {
             return await _context.ShippingProviderTransactions
@@ -129,9 +118,7 @@ namespace BLL.Worker
                 .ToListAsync();
         }
 
-        /// <summary>
-        /// Sync status for a single shipping
-        /// </summary>
+
         private async Task<ShippingSyncResult> SyncSingleShippingAsync(ShippingProviderTransaction shipping)
         {
             var result = new ShippingSyncResult
@@ -204,9 +191,7 @@ namespace BLL.Worker
             }
         }
 
-        /// <summary>
-        /// Public method for manual sync (called by API)
-        /// </summary>
+
         public async Task<ShippingSyncResult> SyncShippingByIdAsync(long shippingId)
         {
             var shipping = await _context.ShippingProviderTransactions
@@ -247,9 +232,6 @@ namespace BLL.Worker
             return await SyncSingleShippingAsync(shipping);
         }
 
-        /// <summary>
-        /// Sync shipping by Order ID (called by API)
-        /// </summary>
         public async Task<ShippingSyncResult> SyncShippingByOrderIdAsync(int orderId)
         {
             var shipping = await _context.ShippingProviderTransactions
