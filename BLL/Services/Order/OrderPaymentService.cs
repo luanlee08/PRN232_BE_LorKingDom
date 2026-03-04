@@ -81,21 +81,6 @@ namespace BLL.Services.Order
                     },
                     new PaymentMethodInfo
                     {
-                        Code = PaymentMethods.MoMo,
-                        Name = "MoMo E-Wallet",
-                        Description = "Thanh toán qua ví điện tử MoMo",
-                        Icon = "📱",
-                        IsAvailable = !string.IsNullOrEmpty(_configuration["MoMo:PartnerCode"]) &&
-                                     _configuration["MoMo:PartnerCode"] != "YOUR_MOMO_PARTNER_CODE" &&
-                                     orderTotal >= PaymentLimits.MoMo.MinAmount &&
-                                     orderTotal <= PaymentLimits.MoMo.MaxAmount,
-                        MinAmount = PaymentLimits.MoMo.MinAmount,
-                        MaxAmount = PaymentLimits.MoMo.MaxAmount,
-                        TransactionFee = PaymentLimits.MoMo.TransactionFeePercent,
-                        TransactionFeeType = "Percentage"
-                    },
-                    new PaymentMethodInfo
-                    {
                         Code = PaymentMethods.Sepay,
                         Name = "Sepay - Chuyển khoản ngân hàng",
                         Description = "Thanh toán qua chuyển khoản ngân hàng tự động",
@@ -168,6 +153,7 @@ namespace BLL.Services.Order
                 // Create WalletTransaction
                 var walletTxn = new WalletTransaction
                 {
+                    WalletId = wallet.WalletId,
                     AccountId = userId,
                     TxnType = WalletTransactionTypes.Payment,
                     Direction = WalletDirection.Out,

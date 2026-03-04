@@ -527,6 +527,7 @@ namespace BLL.Services
                 // Create WalletTransaction
                 var walletTxn = new WalletTransaction
                 {
+                    WalletId = wallet.WalletId,
                     AccountId = accountId,
                     TxnType = WalletTransactionTypes.Payment,
                     Direction = WalletDirection.Out,
@@ -2075,6 +2076,7 @@ namespace BLL.Services
             // Create wallet transaction
             var walletTxn = new WalletTransaction
             {
+                WalletId = wallet.WalletId,
                 AccountId = accountId,
                 TxnType = WalletTransactionTypes.Refund,
                 Direction = WalletDirection.In,
