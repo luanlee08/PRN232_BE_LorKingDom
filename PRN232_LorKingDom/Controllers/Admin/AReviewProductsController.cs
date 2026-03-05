@@ -19,7 +19,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             _reviewProductService = reviewProductService;
         }
 
-        /// Admin xem danh sách tất cả review với filter nâng cao
+        /// Admin xem danh sách tất cả review với filter
         [HttpGet]
         public async Task<IActionResult> GetAdminReviews([FromQuery] AdminReviewListQuery query)
         {
