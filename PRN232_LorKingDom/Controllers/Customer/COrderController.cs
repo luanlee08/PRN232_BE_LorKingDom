@@ -1,7 +1,9 @@
 using BLL.DTOs.Orders;
 using BLL.Interfaces;
+using DAL.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace PRN232_LorKingDom.Controllers.Customer
@@ -11,10 +13,14 @@ namespace PRN232_LorKingDom.Controllers.Customer
     public class COrderController : ControllerBase
     {
         private readonly IOrderService _orderService;
+        private readonly IGHNService _ghnService;
+        private readonly AspLorKingDomContext _context;
 
-        public COrderController(IOrderService orderService)
+        public COrderController(IOrderService orderService, IGHNService ghnService, AspLorKingDomContext context)
         {
             _orderService = orderService;
+            _ghnService = ghnService;
+            _context = context;
         }
         private int GetAccountId()
         {
@@ -138,6 +144,37 @@ namespace PRN232_LorKingDom.Controllers.Customer
 
             var result = await _orderService.GetRefundByIdAsync(refundId);
             return StatusCode(result.Status, result);
+        }
+
+        /// <summary>
+        /// Get GHN tracking detail (status log) for an order the current user owns
+        /// </summary>
+        [Authorize]
+        [HttpGet("{orderId}/tracking")]
+        public async Task<IActionResult> GetOrderTracking(int orderId)
+        {
+            var accountId = GetAccountId();
+            if (accountId == 0)
+                return Unauthorized(new { message = "Unauthorized" });
+
+            var shipping = await _context.ShippingProviderTransactions
+                .Where(s => s.OrderId == orderId && s.Provider == "GHN")
+                .Join(_context.Orders, s => s.OrderId, o => o.OrderId, (s, o) => new { s, o })
+                .Where(x => x.o.AccountId == accountId && !x.o.IsDeleted)
+                .Select(x => x.s)
+                .FirstOrDefaultAsync();
+
+            if (shipping == null)
+                return NotFound(new { message = "Không tìm thấy thông tin vận chuyển cho đơn hàng này" });
+
+            if (string.IsNullOrEmpty(shipping.TrackingNumber))
+                return NotFound(new { message = "Đơn hàng chưa có mã vận đơn GHN" });
+
+            var tracking = await _ghnService.GetOrderTrackingAsync(shipping.TrackingNumber);
+            if (tracking == null)
+                return StatusCode(502, new { message = "Không thể lấy thông tin từ GHN" });
+
+            return Ok(new { status = 200, message = "Success", data = tracking });
         }
 
     }

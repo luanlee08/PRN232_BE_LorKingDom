@@ -261,7 +261,8 @@ namespace BLL.Services.Order
                     throw new KeyNotFoundException("Không tìm thấy đơn hàng");
                 }
 
-                var (canCancel, errorMessage) = _validationHelper.ValidateCancellation(order, order.AccountId);
+                var requesterId = request.CancelledBy ?? order.AccountId;
+                var (canCancel, errorMessage) = _validationHelper.ValidateCancellation(order, requesterId);
                 if (!canCancel)
                 {
                     throw new InvalidOperationException(errorMessage ?? "Cannot cancel order");

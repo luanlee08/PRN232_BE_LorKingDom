@@ -185,9 +185,24 @@ namespace BLL.Services
 
                 _logger.LogInformation("Found cart with {ItemCount} items", cart.CartItems.Count());
 
+                // Filter to only the selected cart items (null = use entire cart)
+                var itemsToOrder = (request.CartItemIds is { Count: > 0 })
+                    ? cart.CartItems.Where(i => request.CartItemIds.Contains(i.CartItemId)).ToList()
+                    : cart.CartItems.ToList();
+
+                if (!itemsToOrder.Any())
+                {
+                    return new ApiResponse<CreateOrderResponse>
+                    {
+                        Status = 400,
+                        StatusMessage = "FAILED",
+                        Message = "Không có sản phẩm nào được chọn để đặt hàng"
+                    };
+                }
+
                 // 2. Validate products and calculate subtotal
                 decimal subtotal = 0;
-                foreach (var item in cart.CartItems)
+                foreach (var item in itemsToOrder)
                 {
                     if (item.Product == null || item.Product.IsDeleted)
                     {
@@ -332,7 +347,7 @@ namespace BLL.Services
                 order = await _orderRepo.CreateOrderAsync(order);
 
                 // 8. Create OrderDetails and update product stock
-                foreach (var cartItem in cart.CartItems)
+                foreach (var cartItem in itemsToOrder)
                 {
                     var orderDetail = new OrderDetail
                     {
@@ -349,7 +364,6 @@ namespace BLL.Services
 
                     // Update product quantity
                     cartItem.Product.Quantity -= cartItem.Quantity;
-                    await _context.SaveChangesAsync(); // Update product in context
                 }
 
                 // 9. Create initial OrderStatusHistory
@@ -427,8 +441,16 @@ namespace BLL.Services
                     order.PaidByExternalAmount = totalAmount;
                 }
 
-                // 11. Clear cart
-                await _cartRepo.DeleteAllCartItemsAsync(cart.CartId);
+                // 11. Clear ordered items from cart (partial if CartItemIds specified)
+                if (request.CartItemIds is { Count: > 0 })
+                {
+                    foreach (var itemId in request.CartItemIds)
+                        await _cartRepo.DeleteCartItemAsync(itemId);
+                }
+                else
+                {
+                    await _cartRepo.DeleteAllCartItemsAsync(cart.CartId);
+                }
 
                 // 12. Send ORDER_CREATED notification (system-generated)
                 try
@@ -826,7 +848,6 @@ namespace BLL.Services
                     if (detail.Product != null)
                     {
                         detail.Product.Quantity += detail.Quantity;
-                        await _context.SaveChangesAsync(); // Update product
                     }
                 }
 
@@ -882,6 +903,8 @@ namespace BLL.Services
             {
                 var order = await _context.Orders
                     .Include(o => o.Status)
+                    .Include(o => o.OrderDetails)
+                        .ThenInclude(d => d.Product)
                     .FirstOrDefaultAsync(o => o.OrderId == orderId && !o.IsDeleted);
 
                 if (order == null)
@@ -908,6 +931,23 @@ namespace BLL.Services
                 // Update order status
                 order.StatusId = request.StatusId;
                 order.UpdatedAt = DateTime.UtcNow;
+
+                // Restore stock and refund wallet when admin cancels an order
+                if (newStatus.StatusName == OrderStatusNames.Cancelled)
+                {
+                    foreach (var detail in order.OrderDetails)
+                    {
+                        if (detail.Product != null)
+                        {
+                            detail.Product.Quantity += detail.Quantity;
+                        }
+                    }
+
+                    if (order.PaidByWalletAmount > 0)
+                    {
+                        await RefundToWalletAsync(order, order.AccountId, order.PaidByWalletAmount, "Hoàn tiền do admin hủy đơn");
+                    }
+                }
 
                 // Create status history
                 _context.OrderStatusHistories.Add(new OrderStatusHistory
@@ -2318,7 +2358,17 @@ namespace BLL.Services
                         ChangedBy = sh.ChangedBy,
                         ChangedByName = sh.ChangedByNavigation?.AccountName,
                         Note = sh.Note
-                    }).ToList()
+                    }).ToList(),
+                    ShippingInfo = order.ShippingProviderTransactions?.FirstOrDefault() != null
+                        ? new ShippingInfoDto
+                        {
+                            Provider = order.ShippingProviderTransactions.First().Provider,
+                            TrackingNumber = order.ShippingProviderTransactions.First().TrackingNumber,
+                            Status = order.ShippingProviderTransactions.First().Status,
+                            EstimatedDelivery = order.ShippingProviderTransactions.First().EstimatedDelivery,
+                            ActualDelivery = order.ShippingProviderTransactions.First().ActualDelivery
+                        }
+                        : null
                 };
 
                 return new ApiResponse<OrderDetailResponse>
