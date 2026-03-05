@@ -89,6 +89,9 @@ namespace DAL
             // Order
             services.AddScoped<IOrderRepository, OrderRepository>();
 
+            // Shipping status history
+            services.AddScoped<IShippingStatusHistoryRepository, ShippingStatusHistoryRepository>();
+
             //Blogs
             // Blogs
             services.AddScoped<IBlogRepository, BlogRepository>();

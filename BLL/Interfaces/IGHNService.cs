@@ -55,4 +55,9 @@ public interface IGHNService
     /// Lấy danh sách phường/xã theo quận từ GHN master-data API
     /// </summary>
     Task<List<GHNWardDTO>> GetWardsAsync(int districtId);
+
+    /// <summary>
+    /// Lấy chi tiết đơn hàng GHN bao gồm log trạng thái
+    /// </summary>
+    Task<GHNTrackingDetail?> GetOrderTrackingAsync(string orderCode);
 }

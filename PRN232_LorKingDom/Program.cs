@@ -1,5 +1,6 @@
 ﻿using BLL;
 using BLL.DTOs;
+using BLL.Interfaces;
 using BLL.Worker;
 using CloudinaryDotNet;
 using DAL;
@@ -10,7 +11,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using PRN232_LorKingDom.Hubs;
 using PRN232_LorKingDom.Middleware;
+using PRN232_LorKingDom.Services;
 using System.Text;
 
 namespace PRN232_LorKingDom
@@ -30,7 +33,7 @@ namespace PRN232_LorKingDom
                     policy.WithOrigins("http://localhost:3000")
                           .AllowAnyMethod()
                           .AllowAnyHeader()
-                          .AllowCredentials();
+                          .AllowCredentials(); // Required for SignalR WebSocket
                 });
             });
 
@@ -107,6 +110,11 @@ namespace PRN232_LorKingDom
             builder.Services.AddDAL(conn);
             builder.Services.AddBLL();
 
+            // SignalR — real-time shipping status push
+            builder.Services.AddSignalR();
+            // IShippingRealtimeService: BLL interface implemented by SignalR in Web layer
+            builder.Services.AddScoped<IShippingRealtimeService, SignalRShippingRealtimeService>();
+
             // Hangfire Configuration
             builder.Services.AddHangfire(configuration => configuration
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
@@ -144,6 +152,19 @@ namespace PRN232_LorKingDom
                     ValidAudience = jwtSettings["Audience"],
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
+                };
+
+                // Allow SignalR to receive JWT from query string (?access_token=...)
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                            context.Token = accessToken;
+                        return Task.CompletedTask;
+                    }
                 };
             });
 
@@ -215,6 +236,18 @@ namespace PRN232_LorKingDom
                     "sync-ghn-shipping-status",
                     worker => worker.SyncGHNShippingStatusJob(),
                     Cron.MinuteInterval(5)); // Run every 5 minutes
+
+                // Demo mode: auto-advance shipping status (enabled via DemoMode:AutoFlowEnabled)
+                recurringJobManager.AddOrUpdate<DemoShippingFlowWorker>(
+                    "demo-shipping-flow",
+                    worker => worker.AdvanceDemoShippingFlowJob(),
+                    Cron.MinuteInterval(2)); // Advance every 2 minutes
+
+                // Auto-cancel Pending orders where external payment expired
+                recurringJobManager.AddOrUpdate<ExpiredPaymentOrderWorker>(
+                    "cancel-expired-payment-orders",
+                    worker => worker.CancelExpiredPaymentOrdersJob(),
+                    Cron.MinuteInterval(5)); // Check every 5 minutes
             }
 
             app.UseHttpsRedirection();
@@ -224,6 +257,10 @@ namespace PRN232_LorKingDom
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
+
+            // SignalR hub endpoint — clients connect to /hubs/shipping
+            app.MapHub<ShippingHub>("/hubs/shipping");
+
             app.Run();
         }
     }

@@ -149,7 +149,7 @@ public class GHNService : IGHNService
             PropertyNameCaseInsensitive = true
         });
 
-        if (result == null || result.Code != 200)
+        if (result == null || result.Code != 200 || result.Data == null)
         {
             return new GHNStatusResponse
             {
@@ -162,7 +162,7 @@ public class GHNService : IGHNService
         {
             Code = result.Code,
             Message = "Success",
-            Data = result.Data == null ? null : new GHNOrderStatus
+            Data = new GHNOrderStatus
             {
                 OrderCode = result.Data.OrderCode ?? "",
                 Status = result.Data.Status ?? "",
@@ -554,13 +554,62 @@ public class GHNService : IGHNService
             "picking" => "Đang lấy hàng",
             "picked" => "Đã lấy hàng",
             "storing" => "Đang lưu kho",
+            "sorting" => "Đang phân loại hàng",
             "transporting" => "Đang vận chuyển",
+            "money_collect_delivering" => "Đang giao & thu tiền",
             "delivering" => "Đang giao hàng",
             "delivered" => "Đã giao hàng",
             "return" => "Chuyển hoàn",
             "returned" => "Đã chuyển hoàn",
             "cancel" => "Đơn hủy",
             _ => status
+        };
+    }
+
+    public async Task<GHNTrackingDetail?> GetOrderTrackingAsync(string orderCode)
+    {
+        var requestData = new { order_code = orderCode };
+        var content = new StringContent(
+            JsonSerializer.Serialize(requestData),
+            Encoding.UTF8,
+            "application/json");
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{_apiEndpoint}/v2/shipping-order/detail")
+        {
+            Content = content
+        };
+        httpRequest.Headers.Add("Token", _apiToken);
+        httpRequest.Headers.Add("ShopId", _shopId.ToString());
+
+        var response = await _httpClient.SendAsync(httpRequest);
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        var result = JsonSerializer.Deserialize<GHNStatusApiResponse>(responseContent, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        if (result?.Code != 200 || result.Data == null)
+            return null;
+
+        var d = result.Data;
+        return new GHNTrackingDetail
+        {
+            OrderCode = d.OrderCode ?? orderCode,
+            Status = d.Status ?? "",
+            StatusText = GetStatusText(d.Status ?? ""),
+            ToName = d.ToName,
+            ToPhone = d.ToPhone,
+            ToAddress = d.ToAddress,
+            ShippingFee = d.TotalFee,
+            ExpectedDeliveryTime = d.ExpectedDeliveryTime,
+            FinishDate = d.FinishDate,
+            Log = d.Log?.Select(l => new GHNTrackingLogItem
+            {
+                Status = l.Status ?? "",
+                StatusText = GetStatusText(l.Status ?? ""),
+                UpdatedDate = l.UpdatedDate
+            }).OrderByDescending(l => l.UpdatedDate).ToList() ?? new List<GHNTrackingLogItem>()
         };
     }
 
@@ -595,7 +644,31 @@ public class GHNService : IGHNService
         [JsonPropertyName("expected_delivery_time")]
         public string? ExpectedDeliveryTime { get; set; }
 
+        [JsonPropertyName("finish_date")]
+        public string? FinishDate { get; set; }
+
+        [JsonPropertyName("to_name")]
+        public string? ToName { get; set; }
+
+        [JsonPropertyName("to_phone")]
+        public string? ToPhone { get; set; }
+
+        [JsonPropertyName("to_address")]
+        public string? ToAddress { get; set; }
+
         public string? Status { get; set; }
+
+        [JsonPropertyName("log")]
+        public List<GHNLogEntry>? Log { get; set; }
+    }
+
+    private class GHNLogEntry
+    {
+        [JsonPropertyName("status")]
+        public string? Status { get; set; }
+
+        [JsonPropertyName("updated_date")]
+        public DateTime UpdatedDate { get; set; }
     }
 
     private class GHNStatusApiResponse

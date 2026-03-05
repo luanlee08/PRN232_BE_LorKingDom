@@ -89,14 +89,7 @@ namespace DAL.Repositories
                 .Where(p =>
                     p.IsDeleted == false &&
                     p.Quantity > 0 &&
-                    p.ProductStatus == "Available" &&
-                    p.CategoryId != null &&
-                    p.MaterialId != null &&
-                    p.AgeId != null &&
-                    p.SexId != null &&
-                    p.PriceRangeId != null &&
-                    p.BrandId != null &&
-                    p.OriginId != null
+                    p.ProductStatus == "Available"
                 );
 
             if (!string.IsNullOrWhiteSpace(keyword))

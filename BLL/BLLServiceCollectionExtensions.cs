@@ -85,6 +85,9 @@ namespace BLL
             services.AddScoped<IGHNService, GHNService>();
             services.AddScoped<ILocationService, LocationService>();
 
+            // GHN Shipping Status — single source of truth for all status update logic
+            services.AddScoped<IGHNShippingStatusService, GHNShippingStatusService>();
+
             // HttpClient for payment & shipping services
             services.AddHttpClient();
 
@@ -131,6 +134,12 @@ namespace BLL
             services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderStatusChangedEvent>, OrderStatusChangedNotificationHandler>();
             services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderCancelledEvent>, OrderCancelledNotificationHandler>();
             services.AddScoped<IDomainEventHandler<BLL.Events.Order.OrderPaidEvent>, OrderPaidNotificationHandler>();
+
+            // GHN shipping status domain event handlers
+            // Push notification for intermediate GHN statuses (picking, transporting, delivering, return)
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.GHNShippingStatusChangedEvent>, GHNStatusNotificationHandler>();
+            // Push realtime via IShippingRealtimeService (implemented by SignalR in Web layer)
+            services.AddScoped<IDomainEventHandler<BLL.Events.Order.GHNShippingStatusChangedEvent>, GHNStatusRealtimeHandler>();
             // =========================================================
 
             // Template
@@ -143,6 +152,7 @@ namespace BLL
             // Workers
             services.AddScoped<NotificationWorker>();
             services.AddScoped<ShippingStatusSyncWorker>();
+            services.AddScoped<DemoShippingFlowWorker>();
 
             // Đăng ký FluentValidation cho assembly (Đk 1 cái là đủ, mấy cái còn lại ăn theo)
             services.AddValidatorsFromAssemblyContaining<CreateSuperCategoryValidator>();

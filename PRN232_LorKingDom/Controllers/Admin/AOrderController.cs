@@ -2,9 +2,12 @@ using BLL.DTOs.Orders;
 using BLL.DTOs.Shipping;
 using BLL.Interfaces;
 using BLL.Worker;
+using DAL.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace PRN232_LorKingDom.Controllers.Admin
 {
@@ -13,12 +16,20 @@ namespace PRN232_LorKingDom.Controllers.Admin
     public class AOrderController : ControllerBase
     {
         private readonly IOrderService _orderService;
+        private readonly IGHNShippingStatusService _ghnShippingStatusService;
         private readonly ShippingStatusSyncWorker _shippingSyncWorker;
+        private readonly AspLorKingDomContext _context;
 
-        public AOrderController(IOrderService orderService, ShippingStatusSyncWorker shippingSyncWorker)
+        public AOrderController(
+            IOrderService orderService,
+            IGHNShippingStatusService ghnShippingStatusService,
+            ShippingStatusSyncWorker shippingSyncWorker,
+            AspLorKingDomContext context)
         {
             _orderService = orderService;
+            _ghnShippingStatusService = ghnShippingStatusService;
             _shippingSyncWorker = shippingSyncWorker;
+            _context = context;
         }
         private int GetAccountId()
         {
@@ -81,10 +92,25 @@ namespace PRN232_LorKingDom.Controllers.Admin
         {
             try
             {
+                if (webhookData?.Data == null || string.IsNullOrEmpty(webhookData.Data.OrderCode))
+                    return BadRequest(new { message = "Invalid GHN webhook payload" });
 
+                var rawPayload = JsonSerializer.Serialize(webhookData);
+                var result = await _ghnShippingStatusService.ProcessStatusUpdateAsync(
+                    providerOrderCode: webhookData.Data.OrderCode,
+                    newGHNStatus: webhookData.Data.Status,
+                    source: "Webhook",
+                    rawPayload: rawPayload);
 
-                var result = await _orderService.HandleShippingWebhookAsync("GHN", webhookData);
-                return StatusCode(result.Status, result);
+                if (!result.Success)
+                    return StatusCode(422, new { message = result.Message, data = result });
+
+                return Ok(new
+                {
+                    status = 200,
+                    message = result.StatusUpdated ? "Status updated" : "Status unchanged",
+                    data = result
+                });
             }
             catch (Exception ex)
             {
@@ -198,6 +224,49 @@ namespace PRN232_LorKingDom.Controllers.Admin
             }
         }
 
+
+        /// <summary>
+        /// [DEMO ONLY] Tạo một vận đơn GHN giả lập cho đơn hàng để test UI theo dõi vận chuyển.
+        /// Chỉ tạo khi đơn hàng chưa có vận đơn GHN nào.
+        /// </summary>
+        [Authorize(Roles = "Admin,Staff")]
+        [HttpPost("admin/demo/seed-shipping/{orderId}")]
+        public async Task<IActionResult> SeedDemoShipping(int orderId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.ShippingProviderTransactions)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && !o.IsDeleted);
+
+            if (order == null)
+                return NotFound(new { message = "Không tìm thấy đơn hàng" });
+
+            if (order.ShippingProviderTransactions.Any(s => s.Provider == "GHN"))
+                return BadRequest(new { message = "Đơn hàng đã có vận đơn GHN. Xóa trước rồi seed lại." });
+
+            var fakeCode = $"DEMO{orderId:D6}{DateTime.UtcNow:HHmmss}";
+            var shipping = new ShippingProviderTransaction
+            {
+                OrderId = orderId,
+                Provider = "GHN",
+                ProviderOrderCode = fakeCode,
+                TrackingNumber = fakeCode,
+                ServiceType = "Demo",
+                Status = "ready_to_pick",
+                ShippingFee = 35000,
+                EstimatedDelivery = DateTime.UtcNow.AddDays(3),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.ShippingProviderTransactions.Add(shipping);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                status = 200,
+                message = "Tạo vận đơn demo thành công",
+                data = new { orderId, trackingNumber = fakeCode, status = "ready_to_pick" }
+            });
+        }
 
         [Authorize(Roles = "Admin,Staff")]
         [HttpGet("admin/refunds")]
