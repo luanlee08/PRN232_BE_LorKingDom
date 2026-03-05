@@ -45,4 +45,4 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
     }
-    }
+}
