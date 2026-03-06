@@ -2,9 +2,12 @@ using BLL.DTOs.Orders;
 using BLL.DTOs.Shipping;
 using BLL.Interfaces;
 using BLL.Worker;
+using DAL.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace PRN232_LorKingDom.Controllers.Admin
 {
@@ -13,21 +16,27 @@ namespace PRN232_LorKingDom.Controllers.Admin
     public class AOrderController : ControllerBase
     {
         private readonly IOrderService _orderService;
+        private readonly IGHNShippingStatusService _ghnShippingStatusService;
         private readonly ShippingStatusSyncWorker _shippingSyncWorker;
+        private readonly AspLorKingDomContext _context;
 
-        public AOrderController(IOrderService orderService, ShippingStatusSyncWorker shippingSyncWorker)
+        public AOrderController(
+            IOrderService orderService,
+            IGHNShippingStatusService ghnShippingStatusService,
+            ShippingStatusSyncWorker shippingSyncWorker,
+            AspLorKingDomContext context)
         {
             _orderService = orderService;
+            _ghnShippingStatusService = ghnShippingStatusService;
             _shippingSyncWorker = shippingSyncWorker;
+            _context = context;
         }
         private int GetAccountId()
         {
             var accountIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return int.TryParse(accountIdClaim, out var accountId) ? accountId : 0;
         }
-        /// <summary>
-        /// Get all orders (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpGet("admin/all")]
         public async Task<IActionResult> GetAllOrders(
@@ -39,9 +48,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Create shipping order (GHN) for an existing order (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("admin/{orderId}/shipping")]
         public async Task<IActionResult> CreateShippingOrder(
@@ -61,9 +68,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Update order status (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPut("admin/{orderId}/status")]
         public async Task<IActionResult> UpdateOrderStatus(
@@ -80,20 +85,32 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Webhook endpoint for GHN to update shipping status
-        /// </summary>
+
         [AllowAnonymous]
         [HttpPost("webhook/shipping/ghn")]
         public async Task<IActionResult> HandleGHNWebhook([FromBody] GHNWebhookRequest webhookData)
         {
             try
             {
-                // TODO: Add signature verification if GHN provides it
-                // var signature = Request.Headers["X-GHN-Signature"].FirstOrDefault();
+                if (webhookData?.Data == null || string.IsNullOrEmpty(webhookData.Data.OrderCode))
+                    return BadRequest(new { message = "Invalid GHN webhook payload" });
 
-                var result = await _orderService.HandleShippingWebhookAsync("GHN", webhookData);
-                return StatusCode(result.Status, result);
+                var rawPayload = JsonSerializer.Serialize(webhookData);
+                var result = await _ghnShippingStatusService.ProcessStatusUpdateAsync(
+                    providerOrderCode: webhookData.Data.OrderCode,
+                    newGHNStatus: webhookData.Data.Status,
+                    source: "Webhook",
+                    rawPayload: rawPayload);
+
+                if (!result.Success)
+                    return StatusCode(422, new { message = result.Message, data = result });
+
+                return Ok(new
+                {
+                    status = 200,
+                    message = result.StatusUpdated ? "Status updated" : "Status unchanged",
+                    data = result
+                });
             }
             catch (Exception ex)
             {
@@ -101,9 +118,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             }
         }
 
-        /// <summary>
-        /// Manually refresh shipping status from GHN by Shipping ID (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("admin/shipping/{shippingId}/refresh")]
         public async Task<IActionResult> RefreshShippingStatusById(long shippingId)
@@ -156,9 +171,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             }
         }
 
-        /// <summary>
-        /// Manually refresh shipping status from GHN by Order ID (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("admin/{orderId}/shipping/refresh")]
         public async Task<IActionResult> RefreshShippingStatusByOrderId(int orderId)
@@ -211,9 +224,50 @@ namespace PRN232_LorKingDom.Controllers.Admin
             }
         }
 
+
         /// <summary>
-        /// Get all refund requests (Admin only)
+        /// [DEMO ONLY] Tạo một vận đơn GHN giả lập cho đơn hàng để test UI theo dõi vận chuyển.
+        /// Chỉ tạo khi đơn hàng chưa có vận đơn GHN nào.
         /// </summary>
+        [Authorize(Roles = "Admin,Staff")]
+        [HttpPost("admin/demo/seed-shipping/{orderId}")]
+        public async Task<IActionResult> SeedDemoShipping(int orderId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.ShippingProviderTransactions)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && !o.IsDeleted);
+
+            if (order == null)
+                return NotFound(new { message = "Không tìm thấy đơn hàng" });
+
+            if (order.ShippingProviderTransactions.Any(s => s.Provider == "GHN"))
+                return BadRequest(new { message = "Đơn hàng đã có vận đơn GHN. Xóa trước rồi seed lại." });
+
+            var fakeCode = $"DEMO{orderId:D6}{DateTime.UtcNow:HHmmss}";
+            var shipping = new ShippingProviderTransaction
+            {
+                OrderId = orderId,
+                Provider = "GHN",
+                ProviderOrderCode = fakeCode,
+                TrackingNumber = fakeCode,
+                ServiceType = "Demo",
+                Status = "ready_to_pick",
+                ShippingFee = 35000,
+                EstimatedDelivery = DateTime.UtcNow.AddDays(3),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.ShippingProviderTransactions.Add(shipping);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                status = 200,
+                message = "Tạo vận đơn demo thành công",
+                data = new { orderId, trackingNumber = fakeCode, status = "ready_to_pick" }
+            });
+        }
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpGet("admin/refunds")]
         public async Task<IActionResult> GetRefundRequests(
@@ -225,9 +279,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Get refund by ID (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpGet("admin/refunds/{refundId}")]
         public async Task<IActionResult> GetRefundById(long refundId)
@@ -236,9 +288,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Approve or reject refund request (Admin only)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff")]
         [HttpPost("admin/refunds/approve")]
         public async Task<IActionResult> ApproveRefund([FromBody] ApproveRefundRequest request)
@@ -253,9 +303,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Handle payment webhook from payment gateway (VNPay, MoMo, etc.)
-        /// </summary>
+
         [AllowAnonymous]
         [HttpPost("webhook/payment/{provider}")]
         public async Task<IActionResult> HandlePaymentWebhook(
@@ -269,9 +317,7 @@ namespace PRN232_LorKingDom.Controllers.Admin
             return StatusCode(result.Status, result);
         }
 
-        /// <summary>
-        /// Confirm COD payment (Shipper confirms cash collected)
-        /// </summary>
+
         [Authorize(Roles = "Admin,Staff,Shipper")]
         [HttpPost("{orderId}/cod-confirm")]
         public async Task<IActionResult> ConfirmCODPayment(int orderId)

@@ -1,7 +1,6 @@
 using BLL.DTOs.PaymentGateway;
 using BLL.Interfaces;
 using Microsoft.Extensions.Configuration;
-using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;

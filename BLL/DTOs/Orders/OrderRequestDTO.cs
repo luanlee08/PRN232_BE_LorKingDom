@@ -31,6 +31,9 @@
 
         public string? Note { get; set; }
         public string? IdempotencyKey { get; set; } // Prevent duplicate orders
+
+        // Selective checkout: only order these cart item IDs (null = order entire cart)
+        public List<int>? CartItemIds { get; set; }
     }
 
     public class CreateRefundRequest

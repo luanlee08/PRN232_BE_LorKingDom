@@ -3,104 +3,61 @@ using BLL.Interfaces;
 using DAL.Models;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace BLL.Worker
 {
     /// <summary>
-    /// Background worker to sync shipping status from GHN API
-    /// Runs every 5 minutes to check active shipments and update order status
+    /// Hangfire recurring job that polls GHN API every 5 minutes for active shipments.
+    /// All business logic is delegated to IGHNShippingStatusService — this class is a
+    /// thin scheduler wrapper. SyncShippingByIdAsync / SyncShippingByOrderIdAsync are
+    /// kept for the Admin manual-sync API endpoints.
+    ///
+    /// To switch from polling to webhook: set "Shipping:GHNPollingEnabled": false in
+    /// appsettings.json. The job becomes a no-op without any code change.
     /// </summary>
     public class ShippingStatusSyncWorker
     {
+        private readonly IGHNShippingStatusService _shippingStatusService;
         private readonly AspLorKingDomContext _context;
-        private readonly IGHNService _ghnService;
-        private readonly IOrderService _orderService;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<ShippingStatusSyncWorker> _logger;
 
         public ShippingStatusSyncWorker(
+            IGHNShippingStatusService shippingStatusService,
             AspLorKingDomContext context,
-            IGHNService ghnService,
-            IOrderService orderService,
+            IConfiguration configuration,
             ILogger<ShippingStatusSyncWorker> logger)
         {
+            _shippingStatusService = shippingStatusService;
             _context = context;
-            _ghnService = ghnService;
-            _orderService = orderService;
+            _configuration = configuration;
             _logger = logger;
         }
 
-        /// <summary>
-        /// Hangfire recurring job to sync GHN shipping status
-        /// - Scans active shipments (Processing or Shipped orders)
-        /// - Calls GHN API to get latest status
-        /// - Updates order status if changed
-        /// - Sends notifications to customers
-        /// </summary>
         [AutomaticRetry(Attempts = 3)]
         public async Task SyncGHNShippingStatusJob()
         {
+            // Feature-flag: disable polling when running with real webhooks
+            if (!_configuration.GetValue<bool>("Shipping:GHNPollingEnabled", defaultValue: true))
+            {
+                _logger.LogInformation("GHN polling disabled via Shipping:GHNPollingEnabled — skipping");
+                return;
+            }
+
             _logger.LogInformation("🔄 Starting GHN shipping status sync...");
 
             try
             {
-                // 1. Get active shipping orders (not delivered, cancelled, or returned)
-                var activeShippings = await GetActiveShippingsAsync();
+                var batch = await _shippingStatusService.SyncActiveShipmentsAsync();
 
-                if (activeShippings.Count == 0)
-                {
-                    _logger.LogInformation("No active GHN shipments to sync");
-                    return;
-                }
-
-                _logger.LogInformation($"Found {activeShippings.Count} active GHN shipments to sync");
-
-                int totalChecked = 0;
-                int updated = 0;
-                int errors = 0;
-                var errorMessages = new List<string>();
-
-                // 2. Process each shipping
-                foreach (var shipping in activeShippings)
-                {
-                    totalChecked++;
-
-                    try
-                    {
-                        var result = await SyncSingleShippingAsync(shipping);
-
-                        if (result.Success && result.StatusUpdated)
-                        {
-                            updated++;
-                            _logger.LogInformation(
-                                $"📦 Order {shipping.Order.OrderId} (Shipping {shipping.ShippingTransactionId}): {result.OldStatus} → {result.NewStatus}");
-                        }
-                        else if (!result.Success)
-                        {
-                            errors++;
-                            errorMessages.Add($"Shipping {shipping.ShippingTransactionId}: {result.Message}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        errors++;
-                        errorMessages.Add($"Shipping {shipping.ShippingTransactionId}: {ex.Message}");
-                        _logger.LogError(ex,
-                            $"Error syncing shipping {shipping.ShippingTransactionId} (Order {shipping.Order.OrderId})");
-                    }
-
-                    // Small delay to avoid rate limiting
-                    await Task.Delay(500);
-                }
-
-                // 3. Log summary
                 _logger.LogInformation(
-                    $"✅ GHN sync completed: {totalChecked} checked, {updated} updated, {errors} errors");
+                    "✅ GHN sync completed: {Checked} checked, {Updated} updated, {Errors} errors",
+                    batch.TotalChecked, batch.Updated, batch.Errors);
 
-                if (errorMessages.Any())
-                {
-                    _logger.LogWarning($"Errors: {string.Join("; ", errorMessages)}");
-                }
+                if (batch.ErrorMessages.Any())
+                    _logger.LogWarning("GHN sync errors: {Errors}", string.Join("; ", batch.ErrorMessages));
             }
             catch (Exception ex)
             {
@@ -109,104 +66,6 @@ namespace BLL.Worker
             }
         }
 
-        /// <summary>
-        /// Get active shipments that need status sync
-        /// </summary>
-        private async Task<List<ShippingProviderTransaction>> GetActiveShippingsAsync()
-        {
-            return await _context.ShippingProviderTransactions
-                .Include(s => s.Order)
-                    .ThenInclude(o => o.Status)
-                .Where(s => s.Provider == "GHN" &&
-                           s.ProviderOrderCode != null &&
-                           s.Status != "delivered" &&
-                           s.Status != "returned" &&
-                           s.Status != "cancelled" &&
-                           s.Status != "exception" &&
-                           (s.Order.Status.StatusName == "Processing" ||
-                            s.Order.Status.StatusName == "Shipped"))
-                .OrderBy(s => s.CreatedAt) // Oldest first
-                .ToListAsync();
-        }
-
-        /// <summary>
-        /// Sync status for a single shipping
-        /// </summary>
-        private async Task<ShippingSyncResult> SyncSingleShippingAsync(ShippingProviderTransaction shipping)
-        {
-            var result = new ShippingSyncResult
-            {
-                Success = false,
-                OldStatus = shipping.Status,
-                SyncedAt = DateTime.UtcNow
-            };
-
-            try
-            {
-                // 1. Call GHN API to get current status
-                var statusResponse = await _ghnService.GetOrderStatusAsync(shipping.ProviderOrderCode!);
-
-                if (statusResponse.Code != 200 || statusResponse.Data == null)
-                {
-                    result.Message = $"GHN API error: {statusResponse.Message}";
-                    return result;
-                }
-
-                var ghnStatus = statusResponse.Data.Status;
-                result.NewStatus = ghnStatus;
-                result.StatusText = statusResponse.Data.StatusText;
-
-                // 2. Check if status changed
-                if (shipping.Status == ghnStatus)
-                {
-                    result.Success = true;
-                    result.StatusUpdated = false;
-                    result.Message = "Status unchanged";
-                    return result;
-                }
-
-                // 3. Status changed - simulate webhook to update order
-                var webhookData = new GHNWebhookRequest
-                {
-                    Type = "Update Order Status",
-                    Data = new GHNWebhookPayload
-                    {
-                        OrderCode = shipping.ProviderOrderCode!,
-                        Status = ghnStatus,
-                        StatusText = statusResponse.Data.StatusText,
-                        ClientOrderCode = $"ORD{shipping.Order.OrderId:D6}",
-                        Fee = statusResponse.Data.Fee,
-                        Time = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")
-                    }
-                };
-
-                // 4. Call webhook handler to update status and send notifications
-                var updateResult = await _orderService.HandleShippingWebhookAsync("GHN", webhookData);
-
-                if (updateResult.Status == 200)
-                {
-                    result.Success = true;
-                    result.StatusUpdated = true;
-                    result.Message = "Status updated successfully";
-                }
-                else
-                {
-                    result.Success = false;
-                    result.Message = updateResult.Message;
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Message = $"Exception: {ex.Message}";
-                return result;
-            }
-        }
-
-        /// <summary>
-        /// Public method for manual sync (called by API)
-        /// </summary>
         public async Task<ShippingSyncResult> SyncShippingByIdAsync(long shippingId)
         {
             var shipping = await _context.ShippingProviderTransactions
@@ -244,17 +103,13 @@ namespace BLL.Worker
                 };
             }
 
-            return await SyncSingleShippingAsync(shipping);
+            // Delegate to service — contains all business logic
+            return await _shippingStatusService.SyncFromGHNApiAsync(shippingId);
         }
 
-        /// <summary>
-        /// Sync shipping by Order ID (called by API)
-        /// </summary>
         public async Task<ShippingSyncResult> SyncShippingByOrderIdAsync(int orderId)
         {
             var shipping = await _context.ShippingProviderTransactions
-                .Include(s => s.Order)
-                    .ThenInclude(o => o.Status)
                 .FirstOrDefaultAsync(s => s.OrderId == orderId && s.Provider == "GHN");
 
             if (shipping == null)
@@ -267,7 +122,7 @@ namespace BLL.Worker
                 };
             }
 
-            return await SyncShippingByIdAsync(shipping.ShippingTransactionId);
+            return await _shippingStatusService.SyncFromGHNApiAsync(shipping.ShippingTransactionId);
         }
     }
 }

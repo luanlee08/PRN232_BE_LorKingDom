@@ -148,3 +148,25 @@ public class GHNWardData
     public int DistrictId { get; set; }
     public string WardName { get; set; } = null!;
 }
+
+// Full tracking detail for customer-facing UI
+public class GHNTrackingDetail
+{
+    public string OrderCode { get; set; } = null!;
+    public string Status { get; set; } = null!;
+    public string StatusText { get; set; } = null!;
+    public string? ToName { get; set; }
+    public string? ToPhone { get; set; }
+    public string? ToAddress { get; set; }
+    public decimal ShippingFee { get; set; }
+    public string? ExpectedDeliveryTime { get; set; }
+    public string? FinishDate { get; set; }
+    public List<GHNTrackingLogItem> Log { get; set; } = new();
+}
+
+public class GHNTrackingLogItem
+{
+    public string Status { get; set; } = null!;
+    public string StatusText { get; set; } = null!;
+    public DateTime UpdatedDate { get; set; }
+}

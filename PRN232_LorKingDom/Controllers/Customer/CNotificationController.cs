@@ -1,5 +1,7 @@
 using BLL.DTOs;
+using BLL.DTOs.Campaigns;
 using BLL.DTOs.Notifications;
+using BLL.Interfaces;
 using BLL.Interfaces.Notification;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,15 +15,18 @@ namespace PRN232_LorKingDom.Controllers.Customer
     {
         private readonly INotificationQueryService _queryService;
         private readonly INotificationCommandService _commandService;
+        private readonly ICampaignService _campaignService;
         private readonly ILogger<CNotificationController> _logger;
 
         public CNotificationController(
             INotificationQueryService queryService,
             INotificationCommandService commandService,
+            ICampaignService campaignService,
             ILogger<CNotificationController> logger)
         {
             _queryService = queryService;
             _commandService = commandService;
+            _campaignService = campaignService;
             _logger = logger;
         }
 
@@ -111,6 +116,18 @@ namespace PRN232_LorKingDom.Controllers.Customer
             if (accountId == null) return UnauthorizedResponse();
 
             var result = await _commandService.DeleteDeliveryAsync(id, accountId.Value);
+            return StatusCode(result.Status, result);
+        }
+
+        /// <summary>
+        /// Record a click or read action for campaign analytics.
+        /// Called from FE when user clicks a notification action link.
+        /// </summary>
+        [Authorize]
+        [HttpPost("action")]
+        public async Task<IActionResult> RecordAction([FromBody] RecordActionRequest request)
+        {
+            var result = await _campaignService.RecordActionAsync(request);
             return StatusCode(result.Status, result);
         }
     }

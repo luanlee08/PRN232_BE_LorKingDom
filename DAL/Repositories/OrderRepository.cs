@@ -59,6 +59,8 @@ namespace DAL.Repositories
         {
             var query = _context.Orders
                 .Include(o => o.Status)
+                .Include(o => o.Account)
+                .Include(o => o.Voucher)
                 .Include(o => o.OrderStatusHistories)
                     .ThenInclude(osh => osh.Status)
                 .Include(o => o.OrderStatusHistories)
@@ -66,6 +68,8 @@ namespace DAL.Repositories
                 .Include(o => o.OrderDetails.Where(od => !od.IsDeleted))
                     .ThenInclude(od => od.Product)
                         .ThenInclude(p => p.ProductImages)
+                .Include(o => o.ShippingProviderTransactions)
+                .Include(o => o.PaymentHistories)
                 .Where(o => o.AccountId == accountId && !o.IsDeleted);
 
             if (!string.IsNullOrEmpty(statusFilter))

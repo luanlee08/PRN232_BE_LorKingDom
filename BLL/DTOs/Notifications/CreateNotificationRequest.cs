@@ -8,19 +8,19 @@ namespace BLL.DTOs.Notifications
     public class SendNotificationRequest
     {
         /// <summary>
-        /// Template code from Templates table (recommended approach)
+        /// Template code from Templates table (optional — auto-fills title/message from DB when provided)
         /// </summary>
         [MaxLength(50)]
         public string? TemplateCode { get; set; }
 
         /// <summary>
-        /// Custom title (used if TemplateCode not provided, or to override template)
+        /// Custom title (used if TemplateCode not provided, or to override template default)
         /// </summary>
         [MaxLength(255)]
         public string? Title { get; set; }
 
         /// <summary>
-        /// Custom message (used if TemplateCode not provided, or to override template)
+        /// Custom message (used if TemplateCode not provided, or to override template default)
         /// </summary>
         [MaxLength(500)]
         public string? Message { get; set; }
@@ -32,10 +32,28 @@ namespace BLL.DTOs.Notifications
         public Dictionary<string, string>? Parameters { get; set; }
 
         /// <summary>
-        /// Additional JSON payload data
+        /// Additional JSON payload data (legacy field, kept for backward compat)
         /// </summary>
         [MaxLength(1000)]
         public string? Payload { get; set; }
+
+        /// <summary>
+        /// Optional image URL displayed in the notification card
+        /// </summary>
+        [MaxLength(500)]
+        public string? ImageUrl { get; set; }
+
+        /// <summary>
+        /// Action type for click navigation: 'product' | 'voucher' | 'url' | 'none'
+        /// </summary>
+        [MaxLength(20)]
+        public string? ActionType { get; set; }
+
+        /// <summary>
+        /// Action target: product ID string, voucher code, or full URL (based on ActionType)
+        /// </summary>
+        [MaxLength(500)]
+        public string? ActionTarget { get; set; }
 
         /// <summary>
         /// Target type: "All", "Role", "User", "Condition"
@@ -50,19 +68,24 @@ namespace BLL.DTOs.Notifications
         public int? TargetRoleId { get; set; }
 
         /// <summary>
-        /// Target user ID (required if TargetType = "User")
+        /// Target user IDs (required if TargetType = "User") — supports multi-select
         /// </summary>
-        public int? TargetUserId { get; set; }
+        public List<int>? TargetUserIds { get; set; }
 
         /// <summary>
-        /// JSON condition for complex targeting (if TargetType = "Condition")
-        /// Example: {"hasOrders":true,"registeredAfter":"2024-01-01"}
+        /// JSON condition for complex targeting (if TargetType = "Condition") — reserved for future use
         /// </summary>
         public string? ConditionJson { get; set; }
 
         /// <summary>
-        /// When to send (null = immediate, future datetime = scheduled)
+        /// When to send (null = immediate, future datetime = scheduled via Hangfire)
         /// </summary>
         public DateTime? ScheduledAt { get; set; }
+
+        /// <summary>
+        /// Optional campaign ID — links all delivery records for analytics.
+        /// Set internally by CampaignService; not exposed in admin direct-send form.
+        /// </summary>
+        public int? CampaignId { get; set; }
     }
 }

@@ -1,4 +1,3 @@
-using BLL.DTOs.Orders;
 using BLL.Interfaces.Order;
 using DAL.Interface;
 using DAL.Models;
@@ -8,9 +7,7 @@ using OfficeOpenXml;
 
 namespace BLL.Services.Order
 {
-    /// <summary>
-    /// Service for exporting order data to Excel
-    /// </summary>
+
     public class OrderExportService : IOrderExportService
     {
         private readonly IOrderRepository _orderRepo;

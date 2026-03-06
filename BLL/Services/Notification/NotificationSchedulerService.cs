@@ -7,9 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Notification
 {
-    /// <summary>
-    /// Service for scheduled notification jobs (Background processing)
-    /// </summary>
+
     public class NotificationSchedulerService : INotificationSchedulerService
     {
         private readonly INotificationRepository _notificationRepo;
@@ -32,9 +30,7 @@ namespace BLL.Services.Notification
             _logger = logger;
         }
 
-        /// <summary>
-        /// Process scheduled notification job (called by Hangfire)
-        /// </summary>
+
         public async Task ProcessScheduledNotificationJobAsync(SendNotificationRequest request, int createdBy, int? jobId)
         {
             _logger.LogInformation("Processing scheduled notification job. BackgroundJobId: {JobId}", jobId);
@@ -65,9 +61,7 @@ namespace BLL.Services.Notification
             }
         }
 
-        /// <summary>
-        /// Create deliveries for target users
-        /// </summary>
+
         public async Task<int> CreateDeliveriesForTargetsAsync(SendNotificationRequest request, int createdBy, int? jobId)
         {
             // Get template and prepare content
@@ -97,6 +91,10 @@ namespace BLL.Services.Notification
                 Title = title,
                 Message = message,
                 Payload = payload,
+                ImageUrl = request.ImageUrl,
+                ActionType = string.IsNullOrWhiteSpace(request.ActionType) ? null : request.ActionType,
+                ActionTarget = string.IsNullOrWhiteSpace(request.ActionTarget) ? null : request.ActionTarget,
+                CampaignId = request.CampaignId,
                 Status = NotificationConstants.DeliveryStatus.Unread,
                 CreatedAt = DateTime.UtcNow
             }).ToList();
@@ -108,9 +106,7 @@ namespace BLL.Services.Notification
             return deliveries.Count;
         }
 
-        /// <summary>
-        /// Create background job record for tracking scheduled notification
-        /// </summary>
+
         public async Task<BackgroundJob> CreateBackgroundJobRecordAsync(SendNotificationRequest request, DateTime scheduledAt)
         {
             var jobName = !string.IsNullOrEmpty(request.TemplateCode)
@@ -132,9 +128,7 @@ namespace BLL.Services.Notification
             return bgJob;
         }
 
-        /// <summary>
-        /// Update background job status
-        /// </summary>
+
         private async Task UpdateBackgroundJobStatusAsync(int jobId, string status, string message)
         {
             var bgJob = await _context.BackgroundJobs.FindAsync(jobId);

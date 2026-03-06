@@ -14,4 +14,5 @@ public class OrderDetailResponse : OrderResponse
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public List<OrderStatusHistoryResponse> StatusHistories { get; set; } = new();
+    public ShippingInfoDto? ShippingInfo { get; set; }
 }

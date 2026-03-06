@@ -1,6 +1,5 @@
 using BLL.DTOs.Orders;
 using BLL.Helpers.Order;
-using BLL.Interfaces;
 using BLL.Interfaces.Order;
 using DAL.Interface;
 using DAL.Models;
@@ -10,9 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Order
 {
-    /// <summary>
-    /// Service for handling Order payment operations
-    /// </summary>
     public class OrderPaymentService : IOrderPaymentService
     {
         private readonly IOrderRepository _orderRepo;
@@ -81,21 +77,6 @@ namespace BLL.Services.Order
                         MinAmount = PaymentLimits.VNPay.MinAmount,
                         MaxAmount = PaymentLimits.VNPay.MaxAmount,
                         TransactionFee = PaymentLimits.VNPay.TransactionFeePercent,
-                        TransactionFeeType = "Percentage"
-                    },
-                    new PaymentMethodInfo
-                    {
-                        Code = PaymentMethods.MoMo,
-                        Name = "MoMo E-Wallet",
-                        Description = "Thanh toán qua ví điện tử MoMo",
-                        Icon = "📱",
-                        IsAvailable = !string.IsNullOrEmpty(_configuration["MoMo:PartnerCode"]) &&
-                                     _configuration["MoMo:PartnerCode"] != "YOUR_MOMO_PARTNER_CODE" &&
-                                     orderTotal >= PaymentLimits.MoMo.MinAmount &&
-                                     orderTotal <= PaymentLimits.MoMo.MaxAmount,
-                        MinAmount = PaymentLimits.MoMo.MinAmount,
-                        MaxAmount = PaymentLimits.MoMo.MaxAmount,
-                        TransactionFee = PaymentLimits.MoMo.TransactionFeePercent,
                         TransactionFeeType = "Percentage"
                     },
                     new PaymentMethodInfo
@@ -172,6 +153,7 @@ namespace BLL.Services.Order
                 // Create WalletTransaction
                 var walletTxn = new WalletTransaction
                 {
+                    WalletId = wallet.WalletId,
                     AccountId = userId,
                     TxnType = WalletTransactionTypes.Payment,
                     Direction = WalletDirection.Out,

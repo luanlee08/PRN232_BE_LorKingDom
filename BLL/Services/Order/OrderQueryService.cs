@@ -7,9 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Order
 {
-    /// <summary>
-    /// Service for handling Order query operations (read-only)
-    /// </summary>
+
     public class OrderQueryService : IOrderQueryService
     {
         private readonly IOrderRepository _orderRepo;

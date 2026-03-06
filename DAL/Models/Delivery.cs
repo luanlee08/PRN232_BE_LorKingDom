@@ -25,9 +25,25 @@ public partial class Delivery
 
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>Optional image displayed in the notification card</summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>Action type for click navigation: 'product' | 'voucher' | 'url' | 'none'</summary>
+    public string? ActionType { get; set; }
+
+    /// <summary>Action target: product ID, voucher code, or full URL depending on ActionType</summary>
+    public string? ActionTarget { get; set; }
+
+    /// <summary>FK to Campaign — null when sent ad-hoc (not part of a campaign)</summary>
+    public int? CampaignId { get; set; }
+
     public virtual Account Account { get; set; } = null!;
+
+    public virtual Campaign? Campaign { get; set; }
 
     public virtual BackgroundJob? CreatedByJob { get; set; }
 
     public virtual Template TemplateCodeNavigation { get; set; } = null!;
+
+    public virtual ICollection<DeliveryAction> DeliveryActions { get; set; } = new List<DeliveryAction>();
 }

@@ -10,14 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Order
 {
-    /// <summary>
-    /// Handles all Order write operations (Create, Cancel, UpdateStatus, ConfirmCOD).
-    ///
-    /// Design principles applied:
-    ///   - No DbContext reference — all persistence via IUnitOfWork + repositories
-    ///   - No direct INotificationCommandService call — uses IDomainEventDispatcher
-    ///   - State transitions validated via OrderStatusTransitions before any DB write
-    /// </summary>
+
     public class OrderCommandService : IOrderCommandService
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -268,7 +261,8 @@ namespace BLL.Services.Order
                     throw new KeyNotFoundException("Không tìm thấy đơn hàng");
                 }
 
-                var (canCancel, errorMessage) = _validationHelper.ValidateCancellation(order, order.AccountId);
+                var requesterId = request.CancelledBy ?? order.AccountId;
+                var (canCancel, errorMessage) = _validationHelper.ValidateCancellation(order, requesterId);
                 if (!canCancel)
                 {
                     throw new InvalidOperationException(errorMessage ?? "Cannot cancel order");

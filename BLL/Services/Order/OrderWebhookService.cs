@@ -7,9 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BLL.Services.Order
 {
-    /// <summary>
-    /// Service for handling payment webhooks from providers
-    /// </summary>
+
     public class OrderWebhookService : IOrderWebhookService
     {
         private readonly AspLorKingDomContext _context;
@@ -138,11 +136,42 @@ namespace BLL.Services.Order
                 }
                 else
                 {
-                    await transaction.RollbackAsync();
+                    // Payment failed — auto-cancel order and restore stock
+                    var paymentHistory = await _context.PaymentHistories
+                        .FirstOrDefaultAsync(ph => ph.OrderId == orderId && ph.PaymentMethod == "VNPay");
+                    if (paymentHistory != null)
+                        paymentHistory.PaymentStatus = "Failed";
+
+                    var cancelledStatus = await _context.StatusOrders
+                        .FirstOrDefaultAsync(s => s.StatusName == "Cancelled");
+                    if (cancelledStatus != null)
+                    {
+                        order.StatusId = cancelledStatus.StatusId;
+                        order.UpdatedAt = DateTime.UtcNow;
+
+                        var details = await _context.OrderDetails
+                            .Include(d => d.Product)
+                            .Where(d => d.OrderId == orderId && !d.IsDeleted)
+                            .ToListAsync();
+                        foreach (var d in details)
+                            if (d.Product != null) d.Product.Quantity += d.Quantity;
+
+                        _context.OrderStatusHistories.Add(new OrderStatusHistory
+                        {
+                            OrderId = orderId,
+                            StatusId = cancelledStatus.StatusId,
+                            ChangedAt = DateTime.UtcNow,
+                            Note = $"Thanh toán VNPay thất bại - mã lỗi: {responseCode}",
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
                     return new WebhookResult
                     {
                         Success = false,
-                        Message = $"Payment failed with code: {responseCode}"
+                        Message = $"Payment failed with code: {responseCode} — order auto-cancelled"
                     };
                 }
             }
