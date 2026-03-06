@@ -26,6 +26,7 @@ namespace DAL.Interface
 
         Task<List<BlogPost>> GetRecentAsync(int limit);
         Task<List<BlogPost>> GetFeaturedAsync(int limit);
+        Task<List<BlogPost>> GetFeaturedForRotationAsync();
         Task SaveChangesAsync();
     }
 }

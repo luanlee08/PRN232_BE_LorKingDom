@@ -13,11 +13,11 @@ namespace BLL.Validators.Categories
         public CreateCategoryValidator()
         {
             RuleFor(x => x.CategoryName)
-                .NotEmpty()
-                .MaximumLength(255);
+                .NotEmpty().WithMessage("Tên danh mục không được để trống")
+                .MaximumLength(255).WithMessage("Tên danh mục không được vượt quá 255 ký tự");
 
             RuleFor(x => x.SuperCategoryId)
-                .GreaterThan(0);
+                .GreaterThan(0).WithMessage("Super category không hợp lệ");
         }
     }
 }
