@@ -148,6 +148,10 @@ namespace BLL.Services
                     await _imageRepo.AddRangeAsync(images);
                 }
 
+                // === STEP 4b: Mark OrderDetail as Reviewed ===
+                orderDetail.Reviewed = true;
+                await _unitOfWork.SaveChangesAsync();
+
                 await _unitOfWork.CommitTransactionAsync();
 
                 // === STEP 5: Enqueue Background Moderation Job ===
@@ -605,6 +609,9 @@ namespace BLL.Services
                 };
             }
 
+            // Capture old status before applying changes
+            var oldStatus = review.Status;
+
             // Update fields if provided
             if (!string.IsNullOrEmpty(request.Status))
             {
@@ -623,6 +630,18 @@ namespace BLL.Services
 
             review.UpdatedAt = DateTime.UtcNow;
             await _reviewRepo.UpdateAsync(review);
+
+            // Send notification when admin manually rejects a review (only on first rejection)
+            if (review.Status == "Rejected" && oldStatus != "Rejected")
+            {
+                var productName = review.Product?.ProductName ?? "sản phẩm";
+                var reason = request.ModerationDetail ?? review.ModerationDetail ?? "Vi phạm chính sách nội dung";
+                await _notificationCommandService.SendReviewRejectionNotificationAsync(
+                    reviewId,
+                    review.AccountId,
+                    productName,
+                    reason);
+            }
 
             return new ApiResponse<ReviewResponse>
             {

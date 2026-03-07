@@ -37,5 +37,12 @@ namespace PRN232_LorKingDom.Controllers.Admin
             var result = await _voucherService.UpdateVoucherAsync(id, request);
             return StatusCode(result.Status, result);
         }
+
+        [HttpGet("types")]
+        public async Task<IActionResult> GetVoucherTypes()
+        {
+            var result = await _voucherService.GetVoucherTypesAsync();
+            return StatusCode(result.Status, result);
+        }
     }
 }

@@ -10,6 +10,7 @@ namespace BLL.Interfaces
         Task<ApiResponse<VoucherResponse?>> GetVoucherByCodeAsync(string voucherCode);
         Task<ApiResponse<VoucherResponse>> CreateVoucherAsync(CreateVoucherRequest createDTO);
         Task<ApiResponse<VoucherResponse>> UpdateVoucherAsync(int voucherId, UpdateVoucherRequest updateDTO);
-        //Task<List<VoucherTypeDTO>> GetVoucherTypesAsync();
+        Task<ApiResponse<List<VoucherTypeDTO>>> GetVoucherTypesAsync();
+        Task<ApiResponse<ValidateVoucherResponse>> ValidateVoucherForCustomerAsync(string code, decimal orderAmount);
     }
 }
