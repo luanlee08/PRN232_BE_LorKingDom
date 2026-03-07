@@ -1,5 +1,6 @@
 using BLL.DTOs.Orders;
 using BLL.Interfaces;
+using BLL.Interfaces.Order;
 using DAL.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,12 +16,21 @@ namespace PRN232_LorKingDom.Controllers.Customer
         private readonly IOrderService _orderService;
         private readonly IGHNService _ghnService;
         private readonly AspLorKingDomContext _context;
+        private readonly IOrderWebhookService _webhookService;
+        private readonly IConfiguration _configuration;
 
-        public COrderController(IOrderService orderService, IGHNService ghnService, AspLorKingDomContext context)
+        public COrderController(
+            IOrderService orderService,
+            IGHNService ghnService,
+            AspLorKingDomContext context,
+            IOrderWebhookService webhookService,
+            IConfiguration configuration)
         {
             _orderService = orderService;
             _ghnService = ghnService;
             _context = context;
+            _webhookService = webhookService;
+            _configuration = configuration;
         }
         private int GetAccountId()
         {
@@ -32,6 +42,49 @@ namespace PRN232_LorKingDom.Controllers.Customer
         {
             var result = await _orderService.GetAvailablePaymentMethodsAsync();
             return StatusCode(result.Status, result);
+        }
+
+        /// <summary>
+        /// VNPay redirect after payment — processes result and redirects to frontend
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("vnpay-return")]
+        public async Task<IActionResult> VNPayReturn()
+        {
+            var queryParams = Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
+            var result = await _webhookService.HandlePaymentWebhookAsync("vnpay", queryParams);
+            var orderId = queryParams.GetValueOrDefault("vnp_TxnRef", "0");
+            var frontendUrl = _configuration["AppSettings:FrontendUrl"] ?? "http://localhost:3000";
+            var status = result.Success ? "success" : "failed";
+            return Redirect($"{frontendUrl}/profile?tab=orders&payment={status}&orderId={orderId}");
+        }
+
+        /// <summary>
+        /// MoMo redirect after payment — processes result and redirects to frontend
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("momo-return")]
+        public async Task<IActionResult> MoMoReturn()
+        {
+            var queryParams = Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
+            await _webhookService.HandlePaymentWebhookAsync("momo", queryParams);
+            var orderId = queryParams.GetValueOrDefault("orderId", "0");
+            var frontendUrl = _configuration["AppSettings:FrontendUrl"] ?? "http://localhost:3000";
+            return Redirect($"{frontendUrl}/profile?tab=orders&payment=success&orderId={orderId}");
+        }
+
+        /// <summary>
+        /// Sepay redirect after payment — processes result and redirects to frontend
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("sepay-return")]
+        public async Task<IActionResult> SepayReturn()
+        {
+            var queryParams = Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
+            await _webhookService.HandlePaymentWebhookAsync("sepay", queryParams);
+            var orderId = queryParams.GetValueOrDefault("orderId", "0");
+            var frontendUrl = _configuration["AppSettings:FrontendUrl"] ?? "http://localhost:3000";
+            return Redirect($"{frontendUrl}/profile?tab=orders&payment=success&orderId={orderId}");
         }
 
         [Authorize]

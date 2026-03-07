@@ -217,6 +217,7 @@ public class GHNShippingStatusService : IGHNShippingStatusService
             {
                 OrderId = shipping.OrderId,
                 AccountId = shipping.Order.AccountId,
+                CustomerName = shipping.Order.Account?.AccountName,
                 OldStatus = oldOrderStatus,
                 NewStatus = mappedOrderStatus,
                 Note = $"Auto-updated by GHN ({newGHNStatus})",

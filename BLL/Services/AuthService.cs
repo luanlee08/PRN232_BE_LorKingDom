@@ -1,6 +1,8 @@
 ﻿using BLL.DTOs;
 using BLL.DTOs.Auth;
+using BLL.DTOs.Notifications;
 using BLL.Interfaces;
+using BLL.Interfaces.Notification;
 using DAL.Infrastructure.Email;
 using DAL.Infrastructure.Redis;
 using DAL.Interface;
@@ -28,19 +30,22 @@ namespace BLL.Services
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly INotificationCommandService? _notificationService;
 
         public AuthService(
             IAccountRepository accountRepo,
             IRedisService redis,
             IEmailService emailService,
             IConfiguration configuration,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            INotificationCommandService? notificationService = null)
         {
             _accountRepo = accountRepo;
             _redis = redis;
             _emailService = emailService;
             _configuration = configuration;
             _httpClientFactory = httpClientFactory;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<string>> RegisterAsync(RegisterRequest request)
@@ -151,6 +156,31 @@ namespace BLL.Services
 
             // Gửi email chào mừng
             await _emailService.SendWelcomeEmailAsync(account.Email, account.AccountName);
+
+            // Gửi thông báo in-app chào mừng
+            if (_notificationService != null)
+            {
+                try
+                {
+                    await _notificationService.SendNotificationAsync(
+                        new SendNotificationRequest
+                        {
+                            TemplateCode = "WELCOME",
+                            TargetType = "User",
+                            TargetUserIds = new List<int> { account.AccountId },
+                            Parameters = new Dictionary<string, string>
+                            {
+                                ["userName"] = account.AccountName
+                            }
+                        },
+                        createdByAccountId: 0,
+                        isSystemGenerated: true);
+                }
+                catch
+                {
+                    // Notification failure must not block registration
+                }
+            }
 
             // Tạo JWT tokens để auto login
             var (accessToken, refreshToken, expiresAt) = await GenerateTokensAsync(account);

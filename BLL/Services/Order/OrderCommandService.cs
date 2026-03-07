@@ -365,6 +365,7 @@ namespace BLL.Services.Order
                 {
                     OrderId = orderId,
                     AccountId = order.AccountId,
+                    CustomerName = order.Account?.AccountName,
                     OldStatus = oldStatusName,
                     NewStatus = newStatus.StatusName,
                     Note = request.Note,

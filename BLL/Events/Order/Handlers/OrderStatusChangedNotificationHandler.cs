@@ -52,8 +52,10 @@ namespace BLL.Events.Order.Handlers
                     TargetUserIds = new List<int> { e.AccountId },
                     Parameters = new Dictionary<string, string>
                     {
+                        ["orderCode"] = $"ORD{e.OrderId:D6}",
                         ["orderId"] = e.OrderId.ToString(),
                         ["OrderId"] = e.OrderId.ToString(),
+                        ["customerName"] = e.CustomerName ?? string.Empty,
                         ["oldStatus"] = e.OldStatus,
                         ["newStatus"] = e.NewStatus,
                         ["note"] = e.Note ?? string.Empty,
