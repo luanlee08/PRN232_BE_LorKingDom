@@ -17,5 +17,7 @@ namespace DAL.Interface
         Task<Voucher> UpdateVoucherAsync(Voucher voucher);
         Task<bool> VoucherCodeExistsAsync(string voucherCode, int? excludeVoucherId = null);
         Task<VoucherType?> GetVoucherTypeByIdAsync(int voucherTypeId);
+        Task<List<VoucherType>> GetAllVoucherTypesAsync();
+        Task SeedDefaultVoucherTypesAsync();
     }
 }

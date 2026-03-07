@@ -96,7 +96,7 @@ public class CWalletController : ControllerBase
 
         var status = result.Data?.Status == "Completed" ? "success" : "failed";
         var amount = result.Data?.Amount.ToString("F0") ?? "0";
-        return Redirect($"{frontendUrl}/profile/wallet?topup={status}&amount={amount}");
+        return Redirect($"{frontendUrl}/profile?tab=wallet&topup={status}&amount={amount}");
     }
 
     /// <summary>

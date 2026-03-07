@@ -260,6 +260,8 @@ namespace BLL.Services.Notification
                 var request = new SendNotificationRequest
                 {
                     TemplateCode = templateCode,
+                    Title = $"Đánh giá bị từ chối: {productName}",
+                    Message = $"Đánh giá của bạn về '{productName}' đã bị từ chối. Lý do: {reason}",
                     TargetType = NotificationConstants.TargetTypes.User,
                     TargetUserIds = new List<int> { accountId },
                     Parameters = parameters,

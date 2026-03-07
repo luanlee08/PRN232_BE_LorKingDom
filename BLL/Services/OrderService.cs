@@ -2333,7 +2333,13 @@ namespace BLL.Services
                     AccountEmail = order.Account?.Email ?? "",
                     VoucherId = order.VoucherId,
                     VoucherCode = order.Voucher?.VoucherCode,
-                    VoucherDiscount = order.Voucher?.DiscountValue,
+                    VoucherDiscount = order.Voucher == null ? null : (order.Voucher.DiscountType == "Percentage"
+                        ? Math.Min(
+                            order.Voucher.MaxDiscountAmount.HasValue
+                                ? Math.Min(order.OrderDetails.Sum(od => od.Quantity * od.UnitPrice) * order.Voucher.DiscountValue / 100, order.Voucher.MaxDiscountAmount.Value)
+                                : order.OrderDetails.Sum(od => od.Quantity * od.UnitPrice) * order.Voucher.DiscountValue / 100,
+                            order.OrderDetails.Sum(od => od.Quantity * od.UnitPrice))
+                        : (decimal?)Math.Min(order.Voucher.DiscountValue, order.OrderDetails.Sum(od => od.Quantity * od.UnitPrice))),
                     ShippingMethod = order.ShippingMethod,
                     ShippingFee = order.ShippingFee,
                     PaidByWalletAmount = order.PaidByWalletAmount,

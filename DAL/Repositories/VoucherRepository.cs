@@ -92,5 +92,23 @@ namespace DAL.Repositories
             return await _context.VoucherTypes
                 .FirstOrDefaultAsync(vt => vt.VoucherTypeId == voucherTypeId);
         }
+
+        public async Task<List<VoucherType>> GetAllVoucherTypesAsync()
+        {
+            return await _context.VoucherTypes
+                .OrderBy(vt => vt.VoucherTypeId)
+                .ToListAsync();
+        }
+
+        public async Task SeedDefaultVoucherTypesAsync()
+        {
+            var defaults = new[]
+            {
+                new VoucherType { VoucherTypeName = "Order", CreatedAt = DateTime.UtcNow },
+                new VoucherType { VoucherTypeName = "Shipping", CreatedAt = DateTime.UtcNow },
+            };
+            await _context.VoucherTypes.AddRangeAsync(defaults);
+            await _context.SaveChangesAsync();
+        }
     }
 }

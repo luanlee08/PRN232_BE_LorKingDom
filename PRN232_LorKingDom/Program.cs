@@ -248,6 +248,12 @@ namespace PRN232_LorKingDom
                     "cancel-expired-payment-orders",
                     worker => worker.CancelExpiredPaymentOrdersJob(),
                     Cron.MinuteInterval(5)); // Check every 5 minutes
+
+                // Auto-expire Pending wallet top-up transactions that were never completed
+                recurringJobManager.AddOrUpdate<ExpiredPendingTopUpWorker>(
+                    "expire-pending-topup-transactions",
+                    worker => worker.ExpirePendingTopUpsJob(),
+                    Cron.MinuteInterval(5)); // Check every 5 minutes
             }
 
             app.UseHttpsRedirection();
