@@ -15,9 +15,9 @@ namespace BLL.Validators.SuperCategory
         {
             RuleFor(x => x.SuperCategoryName)
                 .NotEmpty()
-                    .WithMessage("Tên SuperCategory không được để trống")
+                    .WithMessage("Tên super category không được để trống")
                 .MaximumLength(255)
-                    .WithMessage("Tên SuperCategory tối đa 255 ký tự2");
+                    .WithMessage("Tên super category không được vượt quá 255 ký tự");
         }
     }
 }

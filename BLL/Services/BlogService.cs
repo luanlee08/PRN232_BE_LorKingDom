@@ -10,6 +10,8 @@ namespace BLL.Services
 {
     public class BlogService : IBlogService
     {
+        private const int MaxFeaturedBlogs = 3;
+
         private readonly IBlogRepository _blogRepo;
         private readonly IBlogCategoryRepository _categoryRepo;
         private readonly IWebHostEnvironment _env;
@@ -64,6 +66,11 @@ namespace BLL.Services
             await _blogRepo.AddAsync(blog);
             await _blogRepo.SaveChangesAsync();
 
+            if (blog.IsFeatured && !blog.IsDeleted)
+            {
+                await EnforceFeaturedLimitAsync(blog.BlogPostId);
+            }
+
             return new ApiResponse<int>
             {
                 Status = 201,
@@ -78,6 +85,8 @@ namespace BLL.Services
         {
             if (request.Page < 1) request.Page = 1;
             if (request.PageSize < 1) request.PageSize = 10;
+
+            await EnforceFeaturedLimitAsync();
 
             var (blogs, total) =
                 await _blogRepo.SearchForAdminAsync(
@@ -156,7 +165,17 @@ namespace BLL.Services
             if (request.BlogThumbnail != null)
                 blog.BlogThumbnail = await SaveThumbnailAsync(request.BlogThumbnail);
 
+            if (blog.IsDeleted)
+            {
+                blog.IsFeatured = false;
+            }
+
             await _blogRepo.SaveChangesAsync();
+
+            if (blog.IsFeatured && !blog.IsDeleted)
+            {
+                await EnforceFeaturedLimitAsync(blog.BlogPostId);
+            }
 
             return new ApiResponse<bool>
             {
@@ -268,6 +287,49 @@ namespace BLL.Services
 
         /* ================= HELPER ================= */
 
+        private async Task EnforceFeaturedLimitAsync(int? prioritizedBlogId = null)
+        {
+            var featuredBlogs = await _blogRepo.GetFeaturedForRotationAsync();
+            var overflowCount = featuredBlogs.Count - MaxFeaturedBlogs;
+
+            if (overflowCount <= 0)
+            {
+                return;
+            }
+
+            var demotionCandidates = featuredBlogs
+                .Where(b => !prioritizedBlogId.HasValue || b.BlogPostId != prioritizedBlogId.Value)
+                .OrderBy(b => b.CreatedAt)
+                .ThenBy(b => b.BlogPostId)
+                .ToList();
+
+            for (var i = 0; i < overflowCount; i++)
+            {
+                BlogPost? blogToDemote = null;
+
+                if (i < demotionCandidates.Count)
+                {
+                    blogToDemote = demotionCandidates[i];
+                }
+                else
+                {
+                    blogToDemote = featuredBlogs
+                        .OrderBy(b => b.CreatedAt)
+                        .ThenBy(b => b.BlogPostId)
+                        .FirstOrDefault(b => b.IsFeatured);
+                }
+
+                if (blogToDemote == null)
+                {
+                    break;
+                }
+
+                blogToDemote.IsFeatured = false;
+            }
+
+            await _blogRepo.SaveChangesAsync();
+        }
+
         private async Task<string> SaveThumbnailAsync(IFormFile file)
         {
             var folder = Path.Combine(_env.WebRootPath, "uploads/blogs");
@@ -284,7 +346,10 @@ namespace BLL.Services
 
         public async Task<ApiResponse<List<BlogPublicResponse>>> GetFeaturedAsync(int limit)
         {
-            var blogs = await _blogRepo.GetFeaturedAsync(limit);
+            await EnforceFeaturedLimitAsync();
+
+            var safeLimit = Math.Min(Math.Max(limit, 1), MaxFeaturedBlogs);
+            var blogs = await _blogRepo.GetFeaturedAsync(safeLimit);
 
             return new ApiResponse<List<BlogPublicResponse>>
             {

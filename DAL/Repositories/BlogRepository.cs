@@ -145,5 +145,14 @@ SearchForAdminAsync(string? keyword, int page, int pageSize)
                 .Take(limit)
                 .ToListAsync();
         }
+
+        public async Task<List<BlogPost>> GetFeaturedForRotationAsync()
+        {
+            return await _context.BlogPosts
+                .Where(b => b.IsFeatured && !b.IsDeleted)
+                .OrderBy(b => b.CreatedAt)
+                .ThenBy(b => b.BlogPostId)
+                .ToListAsync();
+        }
     }
 }
