@@ -251,6 +251,11 @@ namespace PRN232_LorKingDom
                     worker => worker.CancelExpiredPaymentOrdersJob(),
                     Cron.MinuteInterval(5)); // Check every 5 minutes
 
+                // Auto-expire Pending wallet top-up transactions that were never completed
+                recurringJobManager.AddOrUpdate<ExpiredPendingTopUpWorker>(
+                    "expire-pending-topup-transactions",
+                    worker => worker.ExpirePendingTopUpsJob(),
+                    Cron.MinuteInterval(5)); // Check every 5 minutes
                 // Low-stock alert: notify admin when products drop to or below threshold
                 recurringJobManager.AddOrUpdate<LowStockNotificationWorker>(
                     "check-low-stock",

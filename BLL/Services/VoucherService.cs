@@ -94,6 +94,18 @@ namespace BLL.Services
                 };
             }
 
+            // Validate VoucherTypeId
+            var voucherType = await _voucherRepository.GetVoucherTypeByIdAsync(request.VoucherTypeId);
+            if (voucherType == null)
+            {
+                return new ApiResponse<VoucherResponse>
+                {
+                    Status = 400,
+                    StatusMessage = "FAILED",
+                    Message = $"Loại voucher không tồn tại (VoucherTypeId={request.VoucherTypeId}). Vui lòng chọn loại voucher hợp lệ.",
+                };
+            }
+
             var voucher = new Voucher
             {
                 VoucherTypeId = request.VoucherTypeId,
@@ -213,6 +225,81 @@ namespace BLL.Services
                 IsDeleted = voucher.IsDeleted,
                 CreatedAt = voucher.CreatedAt,
                 UpdatedAt = voucher.UpdatedAt
+            };
+        }
+
+        public async Task<ApiResponse<ValidateVoucherResponse>> ValidateVoucherForCustomerAsync(string code, decimal orderAmount)
+        {
+            var voucher = await _voucherRepository.GetVoucherByCodeAsync(code);
+
+            if (voucher == null || voucher.IsDeleted || voucher.Status != "Active")
+                return new ApiResponse<ValidateVoucherResponse> { Status = 400, StatusMessage = "FAILED", Message = "Mã voucher không hợp lệ hoặc không tồn tại" };
+
+            if (DateTime.Now < voucher.StartDate || DateTime.Now > voucher.EndDate)
+                return new ApiResponse<ValidateVoucherResponse> { Status = 400, StatusMessage = "FAILED", Message = "Mã voucher đã hết hạn" };
+
+            if (voucher.MinOrderAmount.HasValue && orderAmount > 0 && orderAmount < voucher.MinOrderAmount)
+                return new ApiResponse<ValidateVoucherResponse>
+                {
+                    Status = 400,
+                    StatusMessage = "FAILED",
+                    Message = $"Đơn hàng tối thiểu {voucher.MinOrderAmount:N0}₫ để áp dụng voucher này"
+                };
+
+            decimal discount;
+            if (voucher.DiscountType == "Percentage")
+            {
+                discount = orderAmount > 0 ? orderAmount * voucher.DiscountValue / 100 : voucher.DiscountValue;
+                if (voucher.MaxDiscountAmount.HasValue && discount > voucher.MaxDiscountAmount.Value)
+                    discount = voucher.MaxDiscountAmount.Value;
+            }
+            else
+            {
+                discount = voucher.DiscountValue;
+            }
+
+            if (orderAmount > 0)
+                discount = Math.Min(discount, orderAmount);
+
+            return new ApiResponse<ValidateVoucherResponse>
+            {
+                Status = 200,
+                StatusMessage = "SUCCESS",
+                Message = "Voucher hợp lệ",
+                Data = new ValidateVoucherResponse
+                {
+                    VoucherId = voucher.VoucherId,
+                    VoucherCode = voucher.VoucherCode,
+                    DiscountAmount = discount,
+                    DiscountType = voucher.DiscountType,
+                    DiscountValue = voucher.DiscountValue,
+                    MaxDiscountAmount = voucher.MaxDiscountAmount,
+                    MinOrderAmount = voucher.MinOrderAmount
+                }
+            };
+        }
+
+        public async Task<ApiResponse<List<VoucherTypeDTO>>> GetVoucherTypesAsync()
+        {
+            var types = await _voucherRepository.GetAllVoucherTypesAsync();
+
+            // Auto-seed defaults if the table is empty
+            if (types.Count == 0)
+            {
+                await _voucherRepository.SeedDefaultVoucherTypesAsync();
+                types = await _voucherRepository.GetAllVoucherTypesAsync();
+            }
+
+            return new ApiResponse<List<VoucherTypeDTO>>
+            {
+                Status = 200,
+                StatusMessage = "SUCCESS",
+                Message = "Danh sách loại voucher",
+                Data = types.Select(t => new VoucherTypeDTO
+                {
+                    VoucherTypeId = t.VoucherTypeId,
+                    VoucherTypeName = t.VoucherTypeName
+                }).ToList()
             };
         }
     }
