@@ -114,6 +114,8 @@ namespace PRN232_LorKingDom
             builder.Services.AddSignalR();
             // IShippingRealtimeService: BLL interface implemented by SignalR in Web layer
             builder.Services.AddScoped<IShippingRealtimeService, SignalRShippingRealtimeService>();
+            // INotificationRealtimeService: real-time push to admin/staff/customer inboxes
+            builder.Services.AddScoped<INotificationRealtimeService, SignalRNotificationRealtimeService>();
 
             // Hangfire Configuration
             builder.Services.AddHangfire(configuration => configuration
@@ -254,6 +256,11 @@ namespace PRN232_LorKingDom
                     "expire-pending-topup-transactions",
                     worker => worker.ExpirePendingTopUpsJob(),
                     Cron.MinuteInterval(5)); // Check every 5 minutes
+                // Low-stock alert: notify admin when products drop to or below threshold
+                recurringJobManager.AddOrUpdate<LowStockNotificationWorker>(
+                    "check-low-stock",
+                    worker => worker.CheckLowStockJob(),
+                    Cron.Hourly()); // Check every hour
             }
 
             app.UseHttpsRedirection();
@@ -266,6 +273,8 @@ namespace PRN232_LorKingDom
 
             // SignalR hub endpoint — clients connect to /hubs/shipping
             app.MapHub<ShippingHub>("/hubs/shipping");
+            // SignalR hub endpoint — clients connect to /hubs/notifications
+            app.MapHub<NotificationHub>("/hubs/notifications");
 
             app.Run();
         }

@@ -488,6 +488,36 @@ namespace BLL.Services
                     _logger.LogError(notifEx, "Failed to send ORDER_CREATED notification for order {OrderId}", order.OrderId);
                 }
 
+                // 13. Alert Admin with new-order notification (system-generated)
+                try
+                {
+                    var orderCode = $"ORD{order.OrderId:D6}";
+                    await _notificationService.SendNotificationAsync(
+                        new SendNotificationRequest
+                        {
+                            Title = $"Đơn hàng mới #{orderCode}",
+                            Message = $"Khách hàng vừa đặt đơn hàng {orderCode} trị giá {totalAmount:N0} VND.",
+                            TargetType = NotificationConstants.TargetTypes.Role,
+                            TargetRoleId = 1, // Admin role
+                            Payload = JsonSerializer.Serialize(new
+                            {
+                                type = "new_order",
+                                orderId = order.OrderId,
+                                orderCode = orderCode,
+                                totalAmount = totalAmount
+                            }),
+                            ActionType = "url",
+                            ActionTarget = $"/admin/orders/{order.OrderId}"
+                        },
+                        createdByAccountId: 0,
+                        isSystemGenerated: true
+                    );
+                }
+                catch (Exception adminNotifEx)
+                {
+                    _logger.LogError(adminNotifEx, "Failed to send admin alert for new order {OrderId}", order.OrderId);
+                }
+
                 await transaction.CommitAsync();
 
                 return new ApiResponse<CreateOrderResponse>
@@ -639,7 +669,7 @@ namespace BLL.Services
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/vnpay-return",
+                            ReturnUrl = $"{baseUrl}/api/COrder/vnpay-return",
                             IpAddress = ipAddress
                         };
                         var vnpayResponse = await _vnPayService.CreatePaymentUrlAsync(vnpayRequest);
@@ -651,7 +681,7 @@ namespace BLL.Services
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/momo-return",
+                            ReturnUrl = $"{baseUrl}/api/COrder/momo-return",
                             NotifyUrl = $"{baseUrl}/api/order/webhook/payment/momo"
                         };
                         var momoResponse = await _moMoService.CreatePaymentAsync(momoRequest);
@@ -663,8 +693,8 @@ namespace BLL.Services
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/sepay-return",
-                            CancelUrl = $"{baseUrl}/api/order/sepay-cancel",
+                            ReturnUrl = $"{baseUrl}/api/COrder/sepay-return",
+                            CancelUrl = $"{baseUrl}/api/COrder/sepay-cancel",
                             NotifyUrl = $"{baseUrl}/api/order/webhook/payment/sepay"
                         };
                         var sepayResponse = await _sepayService.CreatePaymentAsync(sepayRequest);
@@ -905,6 +935,7 @@ namespace BLL.Services
                     .Include(o => o.Status)
                     .Include(o => o.OrderDetails)
                         .ThenInclude(d => d.Product)
+                    .Include(o => o.PaymentHistories)
                     .FirstOrDefaultAsync(o => o.OrderId == orderId && !o.IsDeleted);
 
                 if (order == null)
@@ -946,6 +977,23 @@ namespace BLL.Services
                     if (order.PaidByWalletAmount > 0)
                     {
                         await RefundToWalletAsync(order, order.AccountId, order.PaidByWalletAmount, "Hoàn tiền do admin hủy đơn");
+                    }
+                }
+                // Confirm COD payment collected when order is marked Delivered
+                else if (newStatus.StatusName == OrderStatusNames.Delivered)
+                {
+                    var codHistory = order.PaymentHistories
+                        .FirstOrDefault(p => p.PaymentMethod == PaymentMethods.COD
+                                          && p.PaymentStatus == PaymentStatus.Pending);
+                    if (codHistory != null)
+                    {
+                        codHistory.PaymentStatus = PaymentStatus.Success;
+                        codHistory.Note = "Đã thu tiền mặt khi giao hàng";
+                    }
+
+                    if (order.PaymentCompletedAt == null)
+                    {
+                        order.PaymentCompletedAt = DateTime.UtcNow;
                     }
                 }
 
@@ -1833,6 +1881,37 @@ namespace BLL.Services
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                // Alert Admin about new refund request (fire-and-forget)
+                try
+                {
+                    var orderCode = $"ORD{request.OrderId:D6}";
+                    await _notificationService.SendNotificationAsync(
+                        new SendNotificationRequest
+                        {
+                            Title = "Yêu cầu hoàn tiền mới",
+                            Message = $"Có yêu cầu hoàn tiền {refund.RefundAmount:N0} VND cho đơn hàng {orderCode} cần xử lý.",
+                            TargetType = NotificationConstants.TargetTypes.Role,
+                            TargetRoleId = 1, // Admin role
+                            Payload = JsonSerializer.Serialize(new
+                            {
+                                type = "refund_requested",
+                                refundId = refund.RefundId,
+                                orderId = request.OrderId,
+                                orderCode = orderCode,
+                                refundAmount = refund.RefundAmount
+                            }),
+                            ActionType = "url",
+                            ActionTarget = $"/admin/orders/{request.OrderId}"
+                        },
+                        createdByAccountId: 0,
+                        isSystemGenerated: true
+                    );
+                }
+                catch (Exception adminNotifEx)
+                {
+                    _logger.LogError(adminNotifEx, "Failed to send admin refund alert for order {OrderId}", request.OrderId);
+                }
 
                 return new ApiResponse<RefundDto>
                 {

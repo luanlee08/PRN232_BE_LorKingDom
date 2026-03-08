@@ -11,6 +11,7 @@ namespace BLL.Events.Order
         public DateTime OccurredAt { get; } = DateTime.UtcNow;
         public int OrderId { get; init; }
         public int AccountId { get; init; }
+        public string? CustomerName { get; init; }
         public string OldStatus { get; init; } = string.Empty;
         public string NewStatus { get; init; } = string.Empty;
         public string? Note { get; init; }

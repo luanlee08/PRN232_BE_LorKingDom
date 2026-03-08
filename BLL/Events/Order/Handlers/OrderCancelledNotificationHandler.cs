@@ -37,6 +37,7 @@ namespace BLL.Events.Order.Handlers
                     TargetUserIds = new List<int> { e.AccountId },
                     Parameters = new Dictionary<string, string>
                     {
+                        ["orderCode"] = $"ORD{e.OrderId:D6}",
                         ["orderId"] = e.OrderId.ToString(),
                         ["totalAmount"] = e.TotalAmount.ToString("N0"),
                         ["reason"] = e.Reason ?? "Không có lý do"

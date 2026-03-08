@@ -47,7 +47,7 @@ namespace BLL.Helpers.Order
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/vnpay-return",
+                            ReturnUrl = $"{baseUrl}/api/COrder/vnpay-return",
                             IpAddress = ipAddress
                         };
                         var vnpayResponse = await _vnPayService.CreatePaymentUrlAsync(vnpayRequest);
@@ -59,7 +59,7 @@ namespace BLL.Helpers.Order
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/momo-return",
+                            ReturnUrl = $"{baseUrl}/api/COrder/momo-return",
                             NotifyUrl = $"{baseUrl}/api/order/webhook/payment/momo"
                         };
                         var momoResponse = await _moMoService.CreatePaymentAsync(momoRequest);
@@ -71,8 +71,8 @@ namespace BLL.Helpers.Order
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/sepay-return",
-                            CancelUrl = $"{baseUrl}/api/order/sepay-cancel",
+                            ReturnUrl = $"{baseUrl}/api/COrder/sepay-return",
+                            CancelUrl = $"{baseUrl}/api/COrder/sepay-cancel",
                             NotifyUrl = $"{baseUrl}/api/order/webhook/payment/sepay"
                         };
                         var sepayResponse = await _sepayService.CreatePaymentAsync(sepayRequest);

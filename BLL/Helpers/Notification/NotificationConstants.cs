@@ -74,6 +74,9 @@ namespace BLL.Helpers.Notification
             // Review-related (already automated)
             public const string ReviewRejected = "REVIEW_REJECTED";
 
+            // Inventory-related
+            public const string LowStock = "LOW_STOCK";
+
             /// <summary>
             /// Get all system-only template codes
             /// </summary>
@@ -89,7 +92,8 @@ namespace BLL.Helpers.Notification
                 PaymentFailed,
                 PaymentPending,
                 RefundSuccess,
-                ReviewRejected
+                ReviewRejected,
+                LowStock
             };
         }
 
