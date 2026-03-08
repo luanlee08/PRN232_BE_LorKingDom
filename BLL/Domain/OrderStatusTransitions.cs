@@ -24,11 +24,6 @@ namespace BLL.Domain
             {
                 [OrderStatusNames.Pending] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    OrderStatusNames.Processing,
-                    OrderStatusNames.Cancelled
-                },
-                [OrderStatusNames.Processing] = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                {
                     OrderStatusNames.Confirmed,
                     OrderStatusNames.Cancelled
                 },
@@ -83,11 +78,11 @@ namespace BLL.Domain
 
         /// <summary>
         /// Returns true if the order in this status can be cancelled by the customer.
-        /// Only Pending and Processing orders are cancellable by the customer.
+        /// Only Pending and Confirmed orders are cancellable by the customer.
         /// </summary>
         public static bool IsCustomerCancellable(string status) =>
             status.Equals(OrderStatusNames.Pending, StringComparison.OrdinalIgnoreCase) ||
-            status.Equals(OrderStatusNames.Processing, StringComparison.OrdinalIgnoreCase);
+            status.Equals(OrderStatusNames.Confirmed, StringComparison.OrdinalIgnoreCase);
 
         private static string GetAllowedTargets(string from)
             => _allowed.TryGetValue(from, out var t) && t.Any()

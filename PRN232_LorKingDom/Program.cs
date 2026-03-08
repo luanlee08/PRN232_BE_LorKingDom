@@ -227,12 +227,6 @@ namespace PRN232_LorKingDom
             {
                 var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
 
-                // Legacy notification worker (deprecated)
-                recurringJobManager.AddOrUpdate<NotificationWorker>(
-                    "process-scheduled-notifications",
-                    worker => worker.ProcessScheduledNotificationsJob(),
-                    Cron.Minutely);
-
                 // GHN Shipping Status Sync Worker
                 recurringJobManager.AddOrUpdate<ShippingStatusSyncWorker>(
                     "sync-ghn-shipping-status",
@@ -261,6 +255,12 @@ namespace PRN232_LorKingDom
                     "check-low-stock",
                     worker => worker.CheckLowStockJob(),
                     Cron.Hourly()); // Check every hour
+
+                // Auto-complete Delivered orders after N days if customer doesn't confirm
+                recurringJobManager.AddOrUpdate<AutoCompleteDeliveredOrderWorker>(
+                    "auto-complete-delivered-orders",
+                    worker => worker.AutoCompleteDeliveredOrdersJob(),
+                    Cron.HourInterval(6)); // Check every 6 hours
             }
 
             app.UseHttpsRedirection();

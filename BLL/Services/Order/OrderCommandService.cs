@@ -420,6 +420,39 @@ namespace BLL.Services.Order
             }
         }
 
+        public async Task ConfirmDeliveryAsync(int orderId, int accountId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId);
+
+            if (order == null || order.IsDeleted)
+            {
+                throw new KeyNotFoundException("Không tìm thấy đơn hàng");
+            }
+
+            if (order.AccountId != accountId)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền xác nhận đơn hàng này");
+            }
+
+            if (!order.Status.StatusName.Equals(OrderStatusNames.Delivered, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Chỉ có thể xác nhận đơn hàng đang ở trạng thái Đã giao");
+            }
+
+            var completedStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Completed);
+            if (completedStatus == null)
+            {
+                throw new Exception("Completed status not found");
+            }
+
+            await UpdateOrderStatusAsync(orderId, new UpdateOrderStatusRequest
+            {
+                StatusId = completedStatus.StatusId,
+                ChangedBy = accountId,
+                Note = "Khách hàng xác nhận đã nhận hàng"
+            });
+        }
+
         private static OrderDto MapOrderToDto(DAL.Models.Order order)
         {
             return new OrderDto

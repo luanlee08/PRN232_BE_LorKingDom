@@ -1,5 +1,6 @@
+using BLL.DTOs;
 using BLL.DTOs.Orders;
-using BLL.Interfaces;
+using BLL.Interfaces.Order;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -11,12 +12,12 @@ namespace PRN232_LorKingDom.Controllers.Admin
     [Authorize(Roles = "Admin,Staff")]
     public class ARefundController : ControllerBase
     {
-        private readonly IOrderService _orderService;
+        private readonly IOrderRefundService _refundService;
         private readonly ILogger<ARefundController> _logger;
 
-        public ARefundController(IOrderService orderService, ILogger<ARefundController> logger)
+        public ARefundController(IOrderRefundService refundService, ILogger<ARefundController> logger)
         {
-            _orderService = orderService;
+            _refundService = refundService;
             _logger = logger;
         }
 
@@ -32,15 +33,62 @@ namespace PRN232_LorKingDom.Controllers.Admin
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10)
         {
-            var result = await _orderService.GetRefundRequestsAsync(pageNumber, pageSize, statusFilter);
-            return StatusCode(result.Status, result);
+            try
+            {
+                var result = await _refundService.GetRefundRequestsPagedAsync(pageNumber, pageSize, statusFilter);
+                return Ok(new ApiResponse<PagedResult<OrderRefundDto>>
+                {
+                    Status = 200,
+                    StatusMessage = "SUCCESS",
+                    Message = "Lấy danh sách yêu cầu hoàn tiền thành công",
+                    Data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting refund requests");
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Status = 500,
+                    StatusMessage = "ERROR",
+                    Message = "Có lỗi xảy ra: " + ex.Message
+                });
+            }
         }
 
         [HttpGet("{refundId}")]
         public async Task<IActionResult> GetRefundById(long refundId)
         {
-            var result = await _orderService.GetRefundByIdAsync(refundId);
-            return StatusCode(result.Status, result);
+            try
+            {
+                var result = await _refundService.GetRefundByIdAsync((int)refundId);
+                return Ok(new ApiResponse<OrderRefundDto>
+                {
+                    Status = 200,
+                    StatusMessage = "SUCCESS",
+                    Message = "Lấy thông tin hoàn tiền thành công",
+                    Data = result
+                });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Status = 404,
+                    StatusMessage = "NOT_FOUND",
+                    Message = "Không tìm thấy yêu cầu hoàn tiền"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting refund {RefundId}", refundId);
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Status = 500,
+                    StatusMessage = "ERROR",
+                    Message = "Có lỗi xảy ra: " + ex.Message
+                });
+            }
         }
 
         [HttpPut("{refundId}/process")]
@@ -52,15 +100,54 @@ namespace PRN232_LorKingDom.Controllers.Admin
                 return Unauthorized(new { message = "Unauthorized" });
             }
 
-            var approveRequest = new ApproveRefundRequest
+            try
             {
-                RefundId = refundId,
-                IsApproved = request.IsApproved,
-                Note = request.Note
-            };
+                var processRequest = new ProcessRefundRequest
+                {
+                    IsApproved = request.IsApproved,
+                    ApprovedBy = adminId,
+                    Note = request.Note
+                };
 
-            var result = await _orderService.ApproveRefundAsync(approveRequest, adminId);
-            return StatusCode(result.Status, result);
+                var result = await _refundService.ProcessRefundAsync((int)refundId, processRequest);
+                return Ok(new ApiResponse<OrderRefundDto>
+                {
+                    Status = 200,
+                    StatusMessage = "SUCCESS",
+                    Message = request.IsApproved
+                        ? "Duyệt và xử lý hoàn tiền thành công"
+                        : "Đã từ chối yêu cầu hoàn tiền",
+                    Data = result
+                });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Status = 404,
+                    StatusMessage = "NOT_FOUND",
+                    Message = "Không tìm thấy yêu cầu hoàn tiền"
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Status = 400,
+                    StatusMessage = "FAILED",
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing refund {RefundId}", refundId);
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Status = 500,
+                    StatusMessage = "ERROR",
+                    Message = "Có lỗi xảy ra: " + ex.Message
+                });
+            }
         }
     }
 

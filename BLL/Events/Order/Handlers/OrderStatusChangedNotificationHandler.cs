@@ -65,7 +65,7 @@ namespace BLL.Events.Order.Handlers
                         ["shippingUnit"] = e.ShippingProvider ?? string.Empty,
                         ["ShippingUnit"] = e.ShippingProvider ?? string.Empty,
                     },
-                    Payload = $"{{\"type\":\"order\",\"orderId\":{e.OrderId},\"status\":\"{e.NewStatus}\",\"link\":\"/orders/{e.OrderId}\"}}"
+                    Payload = $"{{\"type\":\"order\",\"orderId\":{e.OrderId},\"status\":\"{e.NewStatus}\",\"link\":\"/profile?tab=orders&orderId={e.OrderId}\"}}"
                 },
                 createdByAccountId: 0,
                 isSystemGenerated: true);
