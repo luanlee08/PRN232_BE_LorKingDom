@@ -54,7 +54,7 @@ public class GHNStatusNotificationHandler : IDomainEventHandler<GHNShippingStatu
                     ["ghnStatus"] = e.NewGHNStatus,
                     ["statusText"] = GHNStatusMapper.GetDisplayText(e.NewGHNStatus),
                 },
-                Payload = $"{{\"type\":\"shipping\",\"orderId\":{e.OrderId},\"ghnStatus\":\"{e.NewGHNStatus}\",\"link\":\"/orders/{e.OrderId}\"}}"
+                Payload = $"{{\"type\":\"shipping\",\"orderId\":{e.OrderId},\"ghnStatus\":\"{e.NewGHNStatus}\",\"link\":\"/profile?tab=orders&orderId={e.OrderId}\"}}"
             },
             createdByAccountId: 0,
             isSystemGenerated: true);

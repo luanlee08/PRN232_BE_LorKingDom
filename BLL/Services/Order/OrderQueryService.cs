@@ -26,127 +26,89 @@ namespace BLL.Services.Order
 
         public async Task<OrderDto> GetOrderByIdAsync(int orderId)
         {
-            try
-            {
-                var order = await _orderRepo.GetByIdWithDetailsAsync(orderId);
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId);
+            if (order == null)
+                throw new KeyNotFoundException("Không tìm thấy đơn hàng");
 
-                if (order == null)
-                {
-                    throw new KeyNotFoundException("Không tìm thấy đơn hàng");
-                }
+            return _mapper.MapToDto(order);
+        }
 
-                return _mapper.MapToDto(order);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting order {OrderId}", orderId);
-                throw;
-            }
+        public async Task<OrderDto> GetOrderByIdForAccountAsync(int orderId, int accountId)
+        {
+            var order = await _orderRepo.GetByIdForAccountAsync(orderId, accountId);
+            if (order == null)
+                throw new KeyNotFoundException("Không tìm thấy đơn hàng");
+
+            return _mapper.MapToDto(order);
         }
 
         public async Task<PagedResult<OrderDto>> GetMyOrdersAsync(
-            int? status = null,
-            string? paymentMethod = null,
-            string? paymentStatus = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
+            int accountId,
             int pageNumber = 1,
-            int pageSize = 10)
+            int pageSize = 10,
+            string? statusFilter = null)
         {
-            try
+            var skip = (pageNumber - 1) * pageSize;
+
+            var orders = await _orderRepo.GetOrdersByAccountIdAsync(accountId, skip, pageSize, statusFilter);
+            var totalCount = await _orderRepo.GetOrdersCountByAccountIdAsync(accountId, statusFilter);
+
+            return new PagedResult<OrderDto>
             {
-                // This will be implemented by controller passing accountId
-                throw new NotImplementedException("Use GetOrdersAsync with userId parameter");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting orders");
-                throw;
-            }
+                Items = orders.Select(o => _mapper.MapToDto(o)).ToList(),
+                TotalCount = totalCount,
+                Page = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         public async Task<PagedResult<OrderDto>> GetAllOrdersAsync(
-            int? status = null,
-            string? paymentMethod = null,
-            string? paymentStatus = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
             int pageNumber = 1,
-            int pageSize = 10)
+            int pageSize = 10,
+            string? statusFilter = null)
         {
-            try
+            var skip = (pageNumber - 1) * pageSize;
+
+            var orders = await _orderRepo.GetAllOrdersAsync(skip, pageSize, statusFilter);
+            var totalCount = await _orderRepo.GetTotalOrdersCountAsync(statusFilter);
+
+            return new PagedResult<OrderDto>
             {
-                var skip = (pageNumber - 1) * pageSize;
-
-                // Convert status to string if needed
-                string? statusFilter = status?.ToString();
-
-                var orders = await _orderRepo.GetAllOrdersAsync(skip, pageSize, statusFilter);
-                var totalCount = await _orderRepo.GetTotalOrdersCountAsync(statusFilter);
-
-                var orderDtos = orders.Select(o => _mapper.MapToDto(o)).ToList();
-
-                return new PagedResult<OrderDto>
-                {
-                    Items = orderDtos,
-                    TotalCount = totalCount,
-                    Page = pageNumber,
-                    PageSize = pageSize
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting all orders");
-                throw;
-            }
+                Items = orders.Select(o => _mapper.MapToDto(o)).ToList(),
+                TotalCount = totalCount,
+                Page = pageNumber,
+                PageSize = pageSize
+            };
         }
 
-        public async Task<List<OrderDto>> GetOrdersAsync(
-            int? userId = null,
-            int? status = null,
-            string? paymentMethod = null,
-            string? paymentStatus = null)
+        public async Task<PagedResult<OrderResponse>> GetAdminOrdersPagedAsync(OrderQuery query)
         {
-            try
+            var (items, totalCount) = await _orderRepo.GetPagedAsync(
+                query.Keyword,
+                query.StatusId,
+                query.FromDate,
+                query.ToDate,
+                query.Page,
+                query.PageSize,
+                query.SortBy,
+                query.SortDesc);
+
+            return new PagedResult<OrderResponse>
             {
-                // For now, get all orders and filter in memory
-                // TODO: Add repository method that supports these filters
-                var orders = await _orderRepo.GetAllOrdersAsync(0, 1000, status?.ToString());
-
-                var filteredOrders = orders.AsEnumerable();
-
-                if (userId.HasValue)
-                {
-                    filteredOrders = filteredOrders.Where(o => o.AccountId == userId.Value);
-                }
-
-                return filteredOrders.Select(o => _mapper.MapToDto(o)).ToList();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting orders with filters");
-                throw;
-            }
+                Items = items.Select(o => _mapper.MapToOrderResponse(o)).ToList(),
+                TotalCount = totalCount,
+                Page = query.Page,
+                PageSize = query.PageSize
+            };
         }
 
-        public async Task<OrderDto> GetOrderDetailAsync(int orderId)
+        public async Task<OrderDetailResponse> GetAdminOrderDetailAsync(int orderId)
         {
-            try
-            {
-                var order = await _orderRepo.GetByIdWithDetailsAsync(orderId);
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId);
+            if (order == null)
+                throw new KeyNotFoundException("Không tìm thấy đơn hàng");
 
-                if (order == null)
-                {
-                    throw new KeyNotFoundException("Không tìm thấy đơn hàng");
-                }
-
-                return _mapper.MapToDto(order);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting order detail {OrderId}", orderId);
-                throw;
-            }
+            return _mapper.MapToOrderDetailResponse(order);
         }
     }
 }

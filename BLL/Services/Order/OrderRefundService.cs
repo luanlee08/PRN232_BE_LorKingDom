@@ -35,7 +35,7 @@ namespace BLL.Services.Order
             _logger = logger;
         }
 
-        public async Task<OrderRefundDto> CreateRefundAsync(int orderId, CreateRefundRequest request)
+        public async Task<OrderRefundDto> CreateRefundAsync(int orderId, int accountId, CreateRefundRequest request)
         {
             try
             {
@@ -46,8 +46,8 @@ namespace BLL.Services.Order
                     throw new KeyNotFoundException("Không tìm thấy đơn hàng");
                 }
 
-                // Validate refund request
-                var (isValid, errorMessage) = _validationHelper.ValidateRefundRequest(order, order.AccountId, request.RefundAmount);
+                // Validate refund request (includes ownership check)
+                var (isValid, errorMessage) = _validationHelper.ValidateRefundRequest(order, accountId, request.RefundAmount);
                 if (!isValid)
                 {
                     throw new InvalidOperationException(errorMessage ?? "Invalid refund request");
@@ -58,6 +58,7 @@ namespace BLL.Services.Order
                 {
                     OrderId = orderId,
                     AccountId = order.AccountId,
+                    RequestedBy = accountId,
                     RefundMode = request.RefundMode,
                     RefundStatus = RefundStatus.Requested,
                     TotalAmount = order.TotalAmount,
@@ -240,6 +241,54 @@ namespace BLL.Services.Order
                 _logger.LogError(ex, "Error getting refund {RefundId}", refundId);
                 throw;
             }
+        }
+
+        public async Task<PagedResult<OrderRefundDto>> GetMyRefundsAsync(
+            int accountId,
+            int pageNumber = 1,
+            int pageSize = 10)
+        {
+            var skip = (pageNumber - 1) * pageSize;
+
+            var refunds = await _context.OrderRefunds
+                .Include(r => r.Order)
+                    .ThenInclude(o => o.Status)
+                .Include(r => r.Account)
+                .Where(r => r.AccountId == accountId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Skip(skip)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var total = await _context.OrderRefunds
+                .Where(r => r.AccountId == accountId)
+                .CountAsync();
+
+            return new PagedResult<OrderRefundDto>
+            {
+                Items = refunds.Select(r => _mapper.MapRefundToDto(r)).ToList(),
+                TotalCount = total,
+                Page = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<PagedResult<OrderRefundDto>> GetRefundRequestsPagedAsync(
+            int pageNumber = 1,
+            int pageSize = 10,
+            string? statusFilter = null)
+        {
+            var skip = (pageNumber - 1) * pageSize;
+            var refunds = await _orderRepo.GetRefundRequestsAsync(skip, pageSize, statusFilter);
+            var totalCount = await _orderRepo.GetRefundsCountAsync(statusFilter);
+
+            return new PagedResult<OrderRefundDto>
+            {
+                Items = refunds.Select(r => _mapper.MapRefundToDto(r)).ToList(),
+                TotalCount = totalCount,
+                Page = pageNumber,
+                PageSize = pageSize
+            };
         }
     }
 }

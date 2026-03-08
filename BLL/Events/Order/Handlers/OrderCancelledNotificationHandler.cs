@@ -42,7 +42,7 @@ namespace BLL.Events.Order.Handlers
                         ["totalAmount"] = e.TotalAmount.ToString("N0"),
                         ["reason"] = e.Reason ?? "Không có lý do"
                     },
-                    Payload = $"{{\"type\":\"order\",\"orderId\":{e.OrderId},\"status\":\"Cancelled\",\"link\":\"/orders/{e.OrderId}\"}}"
+                    Payload = $"{{\"type\":\"order\",\"orderId\":{e.OrderId},\"status\":\"Cancelled\",\"link\":\"/profile?tab=orders&orderId={e.OrderId}\"}}"
                 },
                 createdByAccountId: 0,
                 isSystemGenerated: true);
@@ -61,13 +61,13 @@ namespace BLL.Events.Order.Handlers
                         TargetType = "User",
                         TargetUserIds = new List<int> { e.AccountId },
                         ActionType = "url",
-                        ActionTarget = $"/orders/{e.OrderId}",
+                        ActionTarget = $"/profile?tab=orders&orderId={e.OrderId}",
                         Parameters = new Dictionary<string, string>
                         {
                             ["orderId"] = e.OrderId.ToString(),
                             ["totalAmount"] = e.TotalAmount.ToString("N0")
                         },
-                        Payload = $"{{\"type\":\"payment\",\"orderId\":{e.OrderId},\"link\":\"/orders/{e.OrderId}\"}}"
+                        Payload = $"{{\"type\":\"payment\",\"orderId\":{e.OrderId},\"link\":\"/profile?tab=orders&orderId={e.OrderId}\"}}"
                     },
                     createdByAccountId: 0,
                     isSystemGenerated: true);

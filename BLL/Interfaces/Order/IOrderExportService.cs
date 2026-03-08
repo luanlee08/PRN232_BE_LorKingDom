@@ -1,3 +1,5 @@
+using BLL.DTOs.Orders;
+
 namespace BLL.Interfaces.Order
 {
     /// <summary>
@@ -6,13 +8,8 @@ namespace BLL.Interfaces.Order
     public interface IOrderExportService
     {
         /// <summary>
-        /// Export orders to Excel
+        /// Export orders to Excel using admin query parameters
         /// </summary>
-        Task<byte[]> ExportOrdersToExcelAsync(
-            int? status = null,
-            string? paymentMethod = null,
-            string? paymentStatus = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null);
+        Task<byte[]> ExportOrdersToExcelAsync(OrderQuery query);
     }
 }

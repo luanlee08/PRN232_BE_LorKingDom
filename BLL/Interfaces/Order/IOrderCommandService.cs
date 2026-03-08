@@ -26,5 +26,10 @@ namespace BLL.Interfaces.Order
         /// Confirm COD payment received
         /// </summary>
         Task ConfirmCODPaymentAsync(int orderId);
+
+        /// <summary>
+        /// Customer confirms delivery received — transitions Delivered → Completed
+        /// </summary>
+        Task ConfirmDeliveryAsync(int orderId, int accountId);
     }
 }

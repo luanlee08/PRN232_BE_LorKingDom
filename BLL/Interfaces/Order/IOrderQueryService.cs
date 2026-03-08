@@ -14,41 +14,35 @@ namespace BLL.Interfaces.Order
         Task<OrderDto> GetOrderByIdAsync(int orderId);
 
         /// <summary>
-        /// Get current user's orders
+        /// Get order by ID for a specific account (validates ownership)
+        /// </summary>
+        Task<OrderDto> GetOrderByIdForAccountAsync(int orderId, int accountId);
+
+        /// <summary>
+        /// Get orders for a specific account (customer view)
         /// </summary>
         Task<PagedResult<OrderDto>> GetMyOrdersAsync(
-            int? status = null,
-            string? paymentMethod = null,
-            string? paymentStatus = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
+            int accountId,
             int pageNumber = 1,
-            int pageSize = 10);
+            int pageSize = 10,
+            string? statusFilter = null);
 
         /// <summary>
-        /// Get all orders (admin)
+        /// Get all orders (admin, simple filter)
         /// </summary>
         Task<PagedResult<OrderDto>> GetAllOrdersAsync(
-            int? status = null,
-            string? paymentMethod = null,
-            string? paymentStatus = null,
-            DateTime? fromDate = null,
-            DateTime? toDate = null,
             int pageNumber = 1,
-            int pageSize = 10);
+            int pageSize = 10,
+            string? statusFilter = null);
 
         /// <summary>
-        /// Get orders with filters
+        /// Get admin orders with full filtering/sorting (returns OrderResponse)
         /// </summary>
-        Task<List<OrderDto>> GetOrdersAsync(
-            int? userId = null,
-            int? status = null,
-            string? paymentMethod = null,
-            string? paymentStatus = null);
+        Task<PagedResult<OrderResponse>> GetAdminOrdersPagedAsync(OrderQuery query);
 
         /// <summary>
-        /// Get order detail by ID
+        /// Get admin order detail (returns OrderDetailResponse)
         /// </summary>
-        Task<OrderDto> GetOrderDetailAsync(int orderId);
+        Task<OrderDetailResponse> GetAdminOrderDetailAsync(int orderId);
     }
 }

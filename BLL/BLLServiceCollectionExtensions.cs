@@ -150,7 +150,6 @@ namespace BLL
 
 
             // Workers
-            services.AddScoped<NotificationWorker>();
             services.AddScoped<ShippingStatusSyncWorker>();
             services.AddScoped<DemoShippingFlowWorker>();
 

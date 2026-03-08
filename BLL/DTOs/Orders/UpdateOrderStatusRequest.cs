@@ -7,7 +7,7 @@ public class UpdateOrderStatusRequest
     public int? ChangedBy { get; set; }
 
     /// <summary>
-    /// Auto-create GHN shipping order when status changes to Processing
+    /// Auto-create GHN shipping order when status changes to Shipped
     /// </summary>
     public bool AutoCreateShipping { get; set; } = false;
 

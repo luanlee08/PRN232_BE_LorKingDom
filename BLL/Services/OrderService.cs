@@ -462,7 +462,7 @@ namespace BLL.Services
                         orderId = order.OrderId,
                         orderCode = orderCode,
                         totalAmount = totalAmount,
-                        link = $"/orders/{order.OrderId}"
+                        link = $"/profile?tab=orders&orderId={order.OrderId}"
                     });
 
                     await _notificationService.SendNotificationAsync(
@@ -613,17 +613,17 @@ namespace BLL.Services
                 order.PaidByWalletAmount = amount;
                 order.PaymentCompletedAt = DateTime.UtcNow;
 
-                // Update status to Processing
-                var processingStatus = await _context.StatusOrders
-                    .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Processing);
+                // Update status to Confirmed
+                var confirmedStatus = await _context.StatusOrders
+                    .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Confirmed);
 
-                if (processingStatus != null)
+                if (confirmedStatus != null)
                 {
-                    order.StatusId = processingStatus.StatusId;
+                    order.StatusId = confirmedStatus.StatusId;
                     _context.OrderStatusHistories.Add(new OrderStatusHistory
                     {
                         OrderId = order.OrderId,
-                        StatusId = processingStatus.StatusId,
+                        StatusId = confirmedStatus.StatusId,
                         ChangedAt = DateTime.UtcNow,
                         Note = "Thanh toán ví thành công",
                         CreatedAt = DateTime.UtcNow
@@ -848,9 +848,9 @@ namespace BLL.Services
                     };
                 }
 
-                // Can only cancel Pending or Processing orders
+                // Can only cancel Pending or Confirmed orders
                 if (order.Status.StatusName != OrderStatusNames.Pending &&
-                    order.Status.StatusName != OrderStatusNames.Processing)
+                    order.Status.StatusName != OrderStatusNames.Confirmed)
                 {
                     return new ApiResponse<object>
                     {
@@ -1016,11 +1016,11 @@ namespace BLL.Services
                 var orderCode = $"ORD{order.OrderId:D6}";
                 await SendOrderStatusNotificationAsync(order, newStatus.StatusName, orderCode);
 
-                // Auto-create GHN shipping order if requested and status is Processing or Confirmed
+                // Auto-create GHN shipping order if requested and status is Confirmed
                 CreateShippingOrderResponse? shippingResponse = null;
                 string? shippingError = null;
                 if (request.AutoCreateShipping &&
-                    (newStatus.StatusName == "Processing" || newStatus.StatusName == "Confirmed"))
+                    newStatus.StatusName == "Confirmed")
                 {
                     _logger.LogInformation($"Auto-creating GHN shipping for order {orderId} (Status: {newStatus.StatusName})");
 
@@ -1313,14 +1313,15 @@ namespace BLL.Services
                 _context.ShippingProviderTransactions.Add(shippingTransaction);
                 await _context.SaveChangesAsync();
 
-                // 10. Update order status to "Processing" or "Shipped"
-                var shippedStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Processing);
+                // 10. Update order status to Shipped (GHN order handed to carrier)
+                var shippedStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Shipped);
                 if (shippedStatus != null)
                 {
+                    bool statusChanged = order.StatusId != shippedStatus.StatusId;
                     order.StatusId = shippedStatus.StatusId;
                     order.UpdatedAt = DateTime.UtcNow;
 
-                    // Add status history
+                    // Add status history entry with GHN tracking code
                     _context.OrderStatusHistories.Add(new OrderStatusHistory
                     {
                         OrderId = order.OrderId,
@@ -1333,9 +1334,13 @@ namespace BLL.Services
 
                     await _context.SaveChangesAsync();
 
-                    // Send notification
-                    var orderCode = $"ORD{order.OrderId:D6}";
-                    await SendOrderStatusNotificationAsync(order, shippedStatus.StatusName, orderCode);
+                    // Skip notification if status was already Shipped (avoids duplicate when auto-create
+                    // fires right after AOrdersController already advanced order to Shipped)
+                    if (statusChanged)
+                    {
+                        var orderCode = $"ORD{order.OrderId:D6}";
+                        await SendOrderStatusNotificationAsync(order, shippedStatus.StatusName, orderCode);
+                    }
                 }
 
                 await transaction.CommitAsync();
@@ -1434,7 +1439,7 @@ namespace BLL.Services
                     case "picking":
                     case "picked":
                         // Order is being prepared for shipping
-                        newStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Processing);
+                        newStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Confirmed);
                         break;
 
                     case "storing":
@@ -1627,17 +1632,17 @@ namespace BLL.Services
                     var order = gatewayTxn.PaymentHistory.Order;
                     order.PaymentCompletedAt = DateTime.UtcNow;
 
-                    // Update to Processing status
-                    var processingStatus = await _context.StatusOrders
-                        .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Processing);
+                    // Update to Confirmed status
+                    var confirmedStatus = await _context.StatusOrders
+                        .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Confirmed);
 
-                    if (processingStatus != null)
+                    if (confirmedStatus != null)
                     {
-                        order.StatusId = processingStatus.StatusId;
+                        order.StatusId = confirmedStatus.StatusId;
                         _context.OrderStatusHistories.Add(new OrderStatusHistory
                         {
                             OrderId = order.OrderId,
-                            StatusId = processingStatus.StatusId,
+                            StatusId = confirmedStatus.StatusId,
                             ChangedAt = DateTime.UtcNow,
                             Note = $"Thanh toán {provider} thành công",
                             CreatedAt = DateTime.UtcNow
@@ -2550,7 +2555,6 @@ namespace BLL.Services
             {
                 string? templateCode = statusName switch
                 {
-                    OrderStatusNames.Processing => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
                     OrderStatusNames.Confirmed => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
                     OrderStatusNames.Shipped => NotificationConstants.SystemOnlyTemplateCodes.OrderShipped,
                     OrderStatusNames.Delivered => NotificationConstants.SystemOnlyTemplateCodes.OrderDelivered,
@@ -2596,7 +2600,7 @@ namespace BLL.Services
                     orderId = orderId,
                     orderCode = orderCode,
                     status = statusName.ToLower(),
-                    link = $"/orders/{orderId}"
+                    link = $"/profile?tab=orders&orderId={orderId}"
                 });
 
                 await _notificationService.SendNotificationAsync(
@@ -2641,7 +2645,7 @@ namespace BLL.Services
                     status = isSuccess ? "success" : "failed",
                     paymentMethod = paymentMethod,
                     amount = amount,
-                    link = $"/orders/{orderId}"
+                    link = $"/profile?tab=orders&orderId={orderId}"
                 });
 
                 await _notificationService.SendNotificationAsync(

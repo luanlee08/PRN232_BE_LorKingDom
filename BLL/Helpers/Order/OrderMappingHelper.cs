@@ -13,14 +13,18 @@ namespace BLL.Helpers.Order
             return new OrderDto
             {
                 OrderId = order.OrderId,
+                OrderCode = $"ORD{order.OrderId:D6}",
                 AccountId = order.AccountId,
                 AccountName = order.Account?.AccountName,
                 VoucherId = order.VoucherId,
                 VoucherCode = order.Voucher?.VoucherCode,
+                StatusId = order.Status?.StatusId ?? order.StatusId,
+                StatusName = order.Status?.StatusName ?? "",
                 ShippingName = order.ShippingName,
                 ShippingPhone = order.ShippingPhone,
                 ShippingAddressLine = order.ShippingAddressLine,
                 ShippingCity = order.ShippingCity,
+                ShippingDistrict = order.ShippingDistrict,
                 ShippingWard = order.ShippingWard,
                 ShippingMethod = order.ShippingMethod,
                 ShippingFee = order.ShippingFee,
@@ -95,6 +99,91 @@ namespace BLL.Helpers.Order
                 ApprovedAt = refund.ApprovedAt,
                 ProcessedAt = refund.ProcessedAt,
                 ApprovedByName = refund.ApprovedByNavigation?.AccountName
+            };
+        }
+
+        public OrderResponse MapToOrderResponse(DAL.Models.Order order)
+        {
+            return new OrderResponse
+            {
+                OrderId = order.OrderId,
+                OrderCode = $"ORD{order.OrderId:D6}",
+                CustomerName = order.ShippingName ?? order.Account?.AccountName ?? "Unknown",
+                CustomerPhone = order.ShippingPhone ?? order.Account?.PhoneNumber ?? "",
+                StatusId = order.StatusId,
+                StatusName = order.Status?.StatusName ?? "",
+                TotalAmount = order.TotalAmount,
+                ShippingAddress = $"{order.ShippingAddressLine}, {order.ShippingWard}, {order.ShippingCity}",
+                OrderDate = order.OrderDate,
+                PaymentCompletedAt = order.PaymentCompletedAt,
+                RefundStatus = order.RefundStatus,
+                OrderDetails = order.OrderDetails.Select(od => new OrderDetailItemResponse
+                {
+                    ProductId = od.ProductId,
+                    ProductName = od.Product?.ProductName ?? "",
+                    Quantity = od.Quantity,
+                    UnitPrice = od.UnitPrice,
+                    Total = od.Quantity * od.UnitPrice,
+                    ImageUrl = od.Product?.ProductImages?.FirstOrDefault()?.ImageUrl
+                }).ToList()
+            };
+        }
+
+        public OrderDetailResponse MapToOrderDetailResponse(DAL.Models.Order order)
+        {
+            return new OrderDetailResponse
+            {
+                OrderId = order.OrderId,
+                OrderCode = $"ORD{order.OrderId:D6}",
+                CustomerName = order.ShippingName ?? order.Account?.AccountName ?? "Unknown",
+                CustomerPhone = order.ShippingPhone ?? order.Account?.PhoneNumber ?? "",
+                StatusId = order.StatusId,
+                StatusName = order.Status?.StatusName ?? "",
+                TotalAmount = order.TotalAmount,
+                ShippingAddress = $"{order.ShippingAddressLine}, {order.ShippingWard}, {order.ShippingCity}",
+                OrderDate = order.OrderDate,
+                PaymentCompletedAt = order.PaymentCompletedAt,
+                RefundStatus = order.RefundStatus,
+                AccountId = order.AccountId,
+                AccountEmail = order.Account?.Email ?? "",
+                VoucherId = order.VoucherId,
+                VoucherCode = order.Voucher?.VoucherCode,
+                VoucherDiscount = order.Voucher?.DiscountValue,
+                ShippingMethod = order.ShippingMethod,
+                ShippingFee = order.ShippingFee,
+                PaidByWalletAmount = order.PaidByWalletAmount,
+                PaidByExternalAmount = order.PaidByExternalAmount,
+                CreatedAt = order.CreatedAt,
+                UpdatedAt = order.UpdatedAt,
+                OrderDetails = order.OrderDetails.Select(od => new OrderDetailItemResponse
+                {
+                    ProductId = od.ProductId,
+                    ProductName = od.Product?.ProductName ?? "",
+                    Quantity = od.Quantity,
+                    UnitPrice = od.UnitPrice,
+                    Total = od.Quantity * od.UnitPrice,
+                    ImageUrl = od.Product?.ProductImages?.FirstOrDefault()?.ImageUrl
+                }).ToList(),
+                StatusHistories = order.OrderStatusHistories.Select(sh => new OrderStatusHistoryResponse
+                {
+                    OrderStatusHistoryId = sh.OrderStatusHistoryId,
+                    StatusId = sh.StatusId ?? 0,
+                    StatusName = sh.Status?.StatusName ?? "",
+                    ChangedAt = sh.ChangedAt,
+                    ChangedBy = sh.ChangedBy,
+                    ChangedByName = sh.ChangedByNavigation?.AccountName,
+                    Note = sh.Note
+                }).ToList(),
+                ShippingInfo = order.ShippingProviderTransactions?.FirstOrDefault() != null
+                    ? new ShippingInfoDto
+                    {
+                        Provider = order.ShippingProviderTransactions.First().Provider,
+                        TrackingNumber = order.ShippingProviderTransactions.First().TrackingNumber,
+                        Status = order.ShippingProviderTransactions.First().Status,
+                        EstimatedDelivery = order.ShippingProviderTransactions.First().EstimatedDelivery,
+                        ActualDelivery = order.ShippingProviderTransactions.First().ActualDelivery
+                    }
+                    : null
             };
         }
     }

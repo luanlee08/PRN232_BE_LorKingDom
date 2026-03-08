@@ -42,7 +42,7 @@ namespace BLL.Events.Order.Handlers
                         ["amount"] = e.Amount.ToString("N0"),
                         ["paymentMethod"] = e.PaymentMethod
                     },
-                    Payload = $"{{\"type\":\"payment\",\"orderId\":{e.OrderId},\"amount\":{e.Amount},\"link\":\"/orders/{e.OrderId}\"}}"
+                    Payload = $"{{\"type\":\"payment\",\"orderId\":{e.OrderId},\"amount\":{e.Amount},\"link\":\"/profile?tab=orders&orderId={e.OrderId}\"}}"
                 },
                 createdByAccountId: 0,
                 isSystemGenerated: true);
