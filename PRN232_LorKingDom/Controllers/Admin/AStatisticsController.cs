@@ -40,10 +40,10 @@ namespace PRN232_LorKingDom.Controllers.Admin
         }
 
         /// <summary>
-        /// Product statistics — Admin and Warehouse staff.
+        /// Product statistics — Admin only.
         /// </summary>
         [HttpGet("products")]
-        [Authorize(Roles = "Admin,Warehouse")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetProductStatistics(
             [FromQuery] int topN = 10,
             [FromQuery] int lowStockThreshold = 10)

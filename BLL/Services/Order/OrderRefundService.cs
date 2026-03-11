@@ -108,39 +108,52 @@ namespace BLL.Services.Order
                     // Process refund to wallet
                     if (refund.RefundMode == RefundModes.Wallet)
                     {
+                        // Get wallet, or create one if the customer doesn't have it yet
                         var wallet = await _walletRepo.GetByAccountIdAsync(refund.AccountId);
-                        if (wallet != null)
+                        if (wallet == null)
                         {
-                            wallet.Balance += refund.RefundAmount;
-                            wallet.LastTransactionAt = DateTime.UtcNow;
-                            wallet.UpdatedAt = DateTime.UtcNow;
-                            await _walletRepo.UpdateWalletAsync(wallet);
-
-                            // Create wallet transaction
-                            await _walletRepo.AddWalletTransactionAsync(new WalletTransaction
+                            wallet = await _walletRepo.CreateWalletAsync(new DAL.Models.Wallet
                             {
                                 AccountId = refund.AccountId,
-                                TxnType = WalletTransactionTypes.Refund,
-                                Direction = WalletDirection.In,
-                                Amount = refund.RefundAmount,
-                                BalanceBefore = wallet.Balance - refund.RefundAmount,
-                                BalanceAfter = wallet.Balance,
-                                RelatedOrderId = refund.OrderId,
-                                Status = "Completed",
-                                IdempotencyKey = $"refund_{refundId}_{DateTime.UtcNow.Ticks}",
-                                Reason = $"Hoàn tiền đơn hàng #{refund.OrderId}",
-                                CreatedAt = DateTime.UtcNow,
-                                CompletedAt = DateTime.UtcNow
+                                Currency = "VND",
+                                Balance = 0,
+                                Status = "Active",
+                                CreatedAt = DateTime.UtcNow
                             });
                         }
 
+                        var balanceBefore = wallet.Balance;
+                        wallet.Balance += refund.RefundAmount;
+                        wallet.LastTransactionAt = DateTime.UtcNow;
+                        wallet.UpdatedAt = DateTime.UtcNow;
+                        await _walletRepo.UpdateWalletAsync(wallet);
+
+                        // Create wallet transaction (WalletId is required / FK)
+                        await _walletRepo.AddWalletTransactionAsync(new WalletTransaction
+                        {
+                            WalletId = wallet.WalletId,
+                            AccountId = refund.AccountId,
+                            TxnType = WalletTransactionTypes.Refund,
+                            Direction = WalletDirection.In,
+                            Amount = refund.RefundAmount,
+                            BalanceBefore = balanceBefore,
+                            BalanceAfter = wallet.Balance,
+                            RelatedOrderId = refund.OrderId,
+                            Status = "Completed",
+                            IdempotencyKey = $"refund_{refundId}",
+                            Reason = $"Hoàn tiền đơn hàng ORD{refund.OrderId:D6}",
+                            CreatedAt = DateTime.UtcNow,
+                            CompletedAt = DateTime.UtcNow
+                        });
+
+                        refund.RefundStatus = RefundStatus.Completed;
                         refund.ProcessedAt = DateTime.UtcNow;
                     }
 
-                    // Update order refund status
+                    // Update order refund status to Completed
                     if (refund.Order != null)
                     {
-                        refund.Order.RefundStatus = RefundStatus.Approved;
+                        refund.Order.RefundStatus = RefundStatus.Completed;
                         refund.Order.UpdatedAt = DateTime.UtcNow;
                     }
                 }
@@ -226,6 +239,7 @@ namespace BLL.Services.Order
             {
                 var refund = await _context.OrderRefunds
                     .Include(r => r.Order)
+                    .Include(r => r.Account)
                     .Include(r => r.ApprovedByNavigation)
                     .FirstOrDefaultAsync(r => r.RefundId == refundId);
 
