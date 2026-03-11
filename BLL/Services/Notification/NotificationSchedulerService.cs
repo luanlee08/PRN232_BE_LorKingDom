@@ -1,5 +1,6 @@
 using BLL.DTOs.Notifications;
 using BLL.Helpers.Notification;
+using BLL.Interfaces;
 using BLL.Interfaces.Notification;
 using DAL.Interface;
 using DAL.Models;
@@ -14,6 +15,7 @@ namespace BLL.Services.Notification
         private readonly AspLorKingDomContext _context;
         private readonly NotificationContentHelper _contentHelper;
         private readonly NotificationTargetHelper _targetHelper;
+        private readonly INotificationRealtimeService? _realtimeService;
         private readonly ILogger<NotificationSchedulerService> _logger;
 
         public NotificationSchedulerService(
@@ -21,12 +23,14 @@ namespace BLL.Services.Notification
             AspLorKingDomContext context,
             NotificationContentHelper contentHelper,
             NotificationTargetHelper targetHelper,
-            ILogger<NotificationSchedulerService> logger)
+            ILogger<NotificationSchedulerService> logger,
+            INotificationRealtimeService? realtimeService = null)
         {
             _notificationRepo = notificationRepo;
             _context = context;
             _contentHelper = contentHelper;
             _targetHelper = targetHelper;
+            _realtimeService = realtimeService;
             _logger = logger;
         }
 
@@ -100,6 +104,16 @@ namespace BLL.Services.Notification
             }).ToList();
 
             await _notificationRepo.CreateDeliveriesAsync(deliveries);
+
+            // Push real-time to each recipient's personal group (best-effort)
+            if (_realtimeService != null)
+            {
+                var pushPayload = new { title, message, templateCode, createdAt = DateTime.UtcNow };
+                foreach (var userId in targetUserIds)
+                {
+                    _ = _realtimeService.PushToUserAsync(userId, pushPayload);
+                }
+            }
 
             _logger.LogInformation("Created {DeliveryCount} delivery records", deliveries.Count);
 

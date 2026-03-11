@@ -140,7 +140,7 @@ BEGIN
     VALUES (@o1, 1, DATEADD(DAY, -7, GETDATE()), N'Khách hàng đặt hàng', GETDATE());
 END
 
--- ── Order 2 · Processing
+-- ── Order 2 · Confirmed
 IF NOT EXISTS (SELECT 1 FROM Orders WHERE ShippingPhone = '0901234567' AND StatusId = 2 AND ShippingName = N'Order-Test-02')
 BEGIN
     INSERT INTO Orders (AccountId, VoucherId, StatusId, ShippingName, ShippingPhone,
@@ -155,11 +155,11 @@ BEGIN
     INSERT INTO OrderDetails (OrderId, ProductId, Quantity, UnitPrice, IsDeleted, Reviewed, CreatedAt)
     VALUES (@o2, @p2, 2, 250000, 0, 0, GETDATE());
     INSERT INTO OrderStatusHistory (OrderId, StatusId, ChangedAt, Note, CreatedAt)
-    VALUES (@o2, 1, DATEADD(DAY, -6, GETDATE()),  N'Khách hàng đặt hàng',  GETDATE()),
-           (@o2, 2, DATEADD(DAY, -5, GETDATE()),  N'Đang xử lý thanh toán', GETDATE());
+    VALUES (@o2, 1, DATEADD(DAY, -6, GETDATE()),  N'Khách hàng đặt hàng',    GETDATE()),
+           (@o2, 2, DATEADD(DAY, -5, GETDATE()),  N'Đơn hàng đã xác nhận', GETDATE());
 END
 
--- ── Order 3 · Confirmed
+-- ── Order 3 · Shipped
 IF NOT EXISTS (SELECT 1 FROM Orders WHERE ShippingPhone = '0901234567' AND StatusId = 3 AND ShippingName = N'Order-Test-03')
 BEGIN
     INSERT INTO Orders (AccountId, VoucherId, StatusId, ShippingName, ShippingPhone,
@@ -174,12 +174,12 @@ BEGIN
     INSERT INTO OrderDetails (OrderId, ProductId, Quantity, UnitPrice, IsDeleted, Reviewed, CreatedAt)
     VALUES (@o3, @p3, 1, 580000, 0, 0, GETDATE());
     INSERT INTO OrderStatusHistory (OrderId, StatusId, ChangedAt, Note, CreatedAt)
-    VALUES (@o3, 1, DATEADD(DAY, -5, GETDATE()),  N'Khách hàng đặt hàng',  GETDATE()),
-           (@o3, 2, DATEADD(DAY, -4, GETDATE()),  N'Xử lý thành công',     GETDATE()),
-           (@o3, 3, DATEADD(DAY, -3, GETDATE()),  N'Đơn hàng đã xác nhận', GETDATE());
+    VALUES (@o3, 1, DATEADD(DAY, -5, GETDATE()),  N'Đơn hàng được tạo',        GETDATE()),
+           (@o3, 2, DATEADD(DAY, -4, GETDATE()),  N'Đơn hàng đã xác nhận',        GETDATE()),
+           (@o3, 3, DATEADD(DAY, -3, GETDATE()),  N'Đã bàn giao vận chuyển', GETDATE());
 END
 
--- ── Order 4 · Shipped
+-- ── Order 4 · Delivered
 IF NOT EXISTS (SELECT 1 FROM Orders WHERE ShippingPhone = '0901234567' AND StatusId = 4 AND ShippingName = N'Order-Test-04')
 BEGIN
     INSERT INTO Orders (AccountId, VoucherId, StatusId, ShippingName, ShippingPhone,
@@ -195,13 +195,13 @@ BEGIN
     VALUES (@o4, @p1, 1, 350000, 0, 0, GETDATE()),
            (@o4, @p3, 1, 580000, 0, 0, GETDATE());
     INSERT INTO OrderStatusHistory (OrderId, StatusId, ChangedAt, Note, CreatedAt)
-    VALUES (@o4, 1, DATEADD(DAY, -4, GETDATE()),  N'Khách hàng đặt hàng',  GETDATE()),
-           (@o4, 2, DATEADD(DAY, -3, GETDATE()),  N'Xử lý thành công',     GETDATE()),
-           (@o4, 3, DATEADD(DAY, -2, GETDATE()),  N'Đơn hàng đã xác nhận', GETDATE()),
-           (@o4, 4, DATEADD(DAY, -1, GETDATE()),  N'Đã bàn giao vận chuyển', GETDATE());
+    VALUES (@o4, 1, DATEADD(DAY, -4, GETDATE()),  N'Đơn hàng được tạo',        GETDATE()),
+           (@o4, 2, DATEADD(DAY, -3, GETDATE()),  N'Đơn hàng đã xác nhận',        GETDATE()),
+           (@o4, 3, DATEADD(DAY, -2, GETDATE()),  N'Đã bàn giao vận chuyển', GETDATE()),
+           (@o4, 4, DATEADD(DAY, -1, GETDATE()),  N'Giao hàng thành công',  GETDATE());
 END
 
--- ── Order 5 · Delivered
+-- ── Order 5 · Completed
 IF NOT EXISTS (SELECT 1 FROM Orders WHERE ShippingPhone = '0901234567' AND StatusId = 5 AND ShippingName = N'Order-Test-05')
 BEGIN
     DECLARE @deliveredDate DATETIME = DATEADD(DAY, -1, GETDATE());
@@ -219,11 +219,11 @@ BEGIN
     VALUES (@o5, @p1, 1, 350000, 0, 0, GETDATE()),
            (@o5, @p2, 2, 250000, 0, 0, GETDATE());
     INSERT INTO OrderStatusHistory (OrderId, StatusId, ChangedAt, Note, CreatedAt)
-    VALUES (@o5, 1, DATEADD(DAY,-10,GETDATE()), N'Khách hàng đặt hàng',    GETDATE()),
-           (@o5, 2, DATEADD(DAY, -9,GETDATE()), N'Xử lý thành công',       GETDATE()),
-           (@o5, 3, DATEADD(DAY, -8,GETDATE()), N'Đơn hàng đã xác nhận',   GETDATE()),
-           (@o5, 4, DATEADD(DAY, -5,GETDATE()), N'Đã bàn giao vận chuyển', GETDATE()),
-           (@o5, 5, @deliveredDate,             N'Giao hàng thành công',   GETDATE());
+    VALUES (@o5, 1, DATEADD(DAY,-10,GETDATE()), N'Đơn hàng được tạo',        GETDATE()),
+           (@o5, 2, DATEADD(DAY, -9,GETDATE()), N'Đơn hàng đã xác nhận',        GETDATE()),
+           (@o5, 3, DATEADD(DAY, -8,GETDATE()), N'Đã bàn giao vận chuyển', GETDATE()),
+           (@o5, 4, DATEADD(DAY, -5,GETDATE()), N'Giao hàng thành công',   GETDATE()),
+           (@o5, 5, @deliveredDate,             N'Đơn hàng hoàn tất',         GETDATE());
 END
 
 -- ── Order 6 · Cancelled (by customer)
@@ -260,8 +260,8 @@ BEGIN
     INSERT INTO OrderDetails (OrderId, ProductId, Quantity, UnitPrice, IsDeleted, Reviewed, CreatedAt)
     VALUES (@o7, @p3, 1, 580000, 0, 0, GETDATE());
     INSERT INTO OrderStatusHistory (OrderId, StatusId, ChangedAt, Note, CreatedAt)
-    VALUES (@o7, 1, DATEADD(DAY,-8,GETDATE()), N'Khách hàng đặt hàng',          GETDATE()),
-           (@o7, 2, DATEADD(DAY,-7,GETDATE()), N'Xử lý thành công',             GETDATE()),
+    VALUES (@o7, 1, DATEADD(DAY,-8,GETDATE()), N'Đơn hàng được tạo',          GETDATE()),
+           (@o7, 2, DATEADD(DAY,-7,GETDATE()), N'Đơn hàng đã xác nhận',          GETDATE()),
            (@o7, 6, DATEADD(DAY,-6,GETDATE()), N'Hết hàng, tự động huỷ đơn',    GETDATE());
 END
 
@@ -281,16 +281,15 @@ BEGIN
     INSERT INTO OrderDetails (OrderId, ProductId, Quantity, UnitPrice, IsDeleted, Reviewed, CreatedAt)
     VALUES (@o8, @p1, 2, 350000, 0, 0, GETDATE());
     INSERT INTO OrderStatusHistory (OrderId, StatusId, ChangedAt, Note, CreatedAt)
-    VALUES (@o8, 1, DATEADD(DAY,-15,GETDATE()), N'Khách hàng đặt hàng',          GETDATE()),
-           (@o8, 2, DATEADD(DAY,-14,GETDATE()), N'Xử lý thành công',             GETDATE()),
-           (@o8, 3, DATEADD(DAY,-13,GETDATE()), N'Đơn hàng đã xác nhận',          GETDATE()),
-           (@o8, 4, DATEADD(DAY,-12,GETDATE()), N'Đã bàn giao vận chuyển',        GETDATE()),
-           (@o8, 5, DATEADD(DAY,-10,GETDATE()), N'Giao hàng thành công',          GETDATE()),
-           (@o8, 6, DATEADD(DAY, -9,GETDATE()), N'Khách yêu cầu hoàn trả',        GETDATE()),
+    VALUES (@o8, 1, DATEADD(DAY,-15,GETDATE()), N'Đơn hàng được tạo',          GETDATE()),
+           (@o8, 2, DATEADD(DAY,-14,GETDATE()), N'Đơn hàng đã xác nhận',          GETDATE()),
+           (@o8, 3, DATEADD(DAY,-13,GETDATE()), N'Đã bàn giao vận chuyển',        GETDATE()),
+           (@o8, 4, DATEADD(DAY,-12,GETDATE()), N'Giao hàng thành công',          GETDATE()),
+           (@o8, 5, DATEADD(DAY,-10,GETDATE()), N'Đơn hàng hoàn tất',              GETDATE()),
            (@o8, 7, DATEADD(DAY, -8,GETDATE()), N'Hoàn tiền thành công',          GETDATE());
 END
 
--- ── Order 9 · Delivered · wallet paid
+-- ── Order 9 · Completed · wallet paid
 IF NOT EXISTS (SELECT 1 FROM Orders WHERE ShippingPhone = '0901234567' AND StatusId = 5 AND ShippingName = N'Order-Test-09')
 BEGIN
     DECLARE @deliveredDate9 DATETIME = DATEADD(DAY, -2, GETDATE());
@@ -309,11 +308,11 @@ BEGIN
            (@o9, @p2, 1, 250000, 0, 0, GETDATE()),
            (@o9, @p3, 1, 580000, 0, 0, GETDATE());
     INSERT INTO OrderStatusHistory (OrderId, StatusId, ChangedAt, Note, CreatedAt)
-    VALUES (@o9, 1, DATEADD(DAY,-12,GETDATE()), N'Khách hàng đặt hàng',    GETDATE()),
-           (@o9, 2, DATEADD(DAY,-11,GETDATE()), N'Xử lý thành công',       GETDATE()),
-           (@o9, 3, DATEADD(DAY,-10,GETDATE()), N'Đơn hàng đã xác nhận',   GETDATE()),
-           (@o9, 4, DATEADD(DAY, -7,GETDATE()), N'Đã bàn giao vận chuyển', GETDATE()),
-           (@o9, 5, @deliveredDate9,            N'Giao hàng thành công',   GETDATE());
+    VALUES (@o9, 1, DATEADD(DAY,-12,GETDATE()), N'Đơn hàng được tạo',        GETDATE()),
+           (@o9, 2, DATEADD(DAY,-11,GETDATE()), N'Đơn hàng đã xác nhận',        GETDATE()),
+           (@o9, 3, DATEADD(DAY,-10,GETDATE()), N'Đã bàn giao vận chuyển', GETDATE()),
+           (@o9, 4, DATEADD(DAY, -7,GETDATE()), N'Giao hàng thành công',   GETDATE()),
+           (@o9, 5, @deliveredDate9,            N'Đơn hàng hoàn tất',         GETDATE());
 END
 GO
 

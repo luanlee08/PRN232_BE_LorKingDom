@@ -187,17 +187,17 @@ namespace BLL.Services.Order
                 order.PaidByWalletAmount = order.PaidByWalletAmount + amount;
                 order.PaymentCompletedAt = DateTime.UtcNow;
 
-                // Update status to Processing
-                var processingStatus = await _context.StatusOrders
-                    .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Processing);
+                // Update status to Confirmed
+                var confirmedStatus = await _context.StatusOrders
+                    .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Confirmed);
 
-                if (processingStatus != null)
+                if (confirmedStatus != null)
                 {
-                    order.StatusId = processingStatus.StatusId;
+                    order.StatusId = confirmedStatus.StatusId;
                     _context.OrderStatusHistories.Add(new OrderStatusHistory
                     {
                         OrderId = order.OrderId,
-                        StatusId = processingStatus.StatusId,
+                        StatusId = confirmedStatus.StatusId,
                         ChangedAt = DateTime.UtcNow,
                         Note = "Thanh toán ví thành công",
                         CreatedAt = DateTime.UtcNow

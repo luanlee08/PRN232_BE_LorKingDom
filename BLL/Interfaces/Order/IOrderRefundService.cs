@@ -11,7 +11,7 @@ namespace BLL.Interfaces.Order
         /// <summary>
         /// Create refund request
         /// </summary>
-        Task<OrderRefundDto> CreateRefundAsync(int orderId, CreateRefundRequest request);
+        Task<OrderRefundDto> CreateRefundAsync(int orderId, int accountId, CreateRefundRequest request);
 
         /// <summary>
         /// Approve or reject refund (admin)
@@ -32,5 +32,21 @@ namespace BLL.Interfaces.Order
         /// Get refund by ID
         /// </summary>
         Task<OrderRefundDto> GetRefundByIdAsync(int refundId);
+
+        /// <summary>
+        /// Get refunds for a specific account (customer view)
+        /// </summary>
+        Task<PagedResult<OrderRefundDto>> GetMyRefundsAsync(
+            int accountId,
+            int pageNumber = 1,
+            int pageSize = 10);
+
+        /// <summary>
+        /// Get paginated refunds using repository (admin view)
+        /// </summary>
+        Task<PagedResult<OrderRefundDto>> GetRefundRequestsPagedAsync(
+            int pageNumber = 1,
+            int pageSize = 10,
+            string? statusFilter = null);
     }
 }

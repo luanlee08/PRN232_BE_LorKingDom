@@ -40,11 +40,12 @@ namespace BLL.Events.Order.Handlers
                     TargetUserIds = new List<int> { e.AccountId },
                     Parameters = new Dictionary<string, string>
                     {
+                        ["orderCode"] = $"ORD{e.OrderId:D6}",
                         ["orderId"] = e.OrderId.ToString(),
                         ["totalAmount"] = e.TotalAmount.ToString("N0"),
                         ["paymentMethod"] = e.PaymentMethod
                     },
-                    Payload = $"{{\"type\":\"order\",\"orderId\":{e.OrderId},\"link\":\"/orders/{e.OrderId}\"}}"
+                    Payload = $"{{\"type\":\"order\",\"orderId\":{e.OrderId},\"link\":\"/profile?tab=orders&orderId={e.OrderId}\"}}"
                 },
                 createdByAccountId: 0,  // 0 = system-generated
                 isSystemGenerated: true);

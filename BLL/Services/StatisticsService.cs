@@ -61,9 +61,13 @@ namespace BLL.Services
 
                 var revenueChart = BuildRevenueChart(completedOrders, query.Period, from, to);
 
+                // Use Order.PaymentCompletedAt for date filtering — this correctly captures
+                // when COD payments were collected (Delivered) and when online payments settled.
                 var paymentMethods = await _context.PaymentHistories
                     .Where(p => p.PaymentStatus == PaymentStatus.Success
-                        && p.CreatedAt >= from && p.CreatedAt <= to)
+                        && p.Order.PaymentCompletedAt != null
+                        && p.Order.PaymentCompletedAt >= from
+                        && p.Order.PaymentCompletedAt <= to)
                     .GroupBy(p => p.PaymentMethod)
                     .Select(g => new PaymentMethodBreakdown
                     {

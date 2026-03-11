@@ -462,7 +462,7 @@ namespace BLL.Services
                         orderId = order.OrderId,
                         orderCode = orderCode,
                         totalAmount = totalAmount,
-                        link = $"/orders/{order.OrderId}"
+                        link = $"/profile?tab=orders&orderId={order.OrderId}"
                     });
 
                     await _notificationService.SendNotificationAsync(
@@ -486,6 +486,36 @@ namespace BLL.Services
                 {
                     // Log but don't fail the order creation
                     _logger.LogError(notifEx, "Failed to send ORDER_CREATED notification for order {OrderId}", order.OrderId);
+                }
+
+                // 13. Alert Admin with new-order notification (system-generated)
+                try
+                {
+                    var orderCode = $"ORD{order.OrderId:D6}";
+                    await _notificationService.SendNotificationAsync(
+                        new SendNotificationRequest
+                        {
+                            Title = $"Đơn hàng mới #{orderCode}",
+                            Message = $"Khách hàng vừa đặt đơn hàng {orderCode} trị giá {totalAmount:N0} VND.",
+                            TargetType = NotificationConstants.TargetTypes.Role,
+                            TargetRoleId = 1, // Admin role
+                            Payload = JsonSerializer.Serialize(new
+                            {
+                                type = "new_order",
+                                orderId = order.OrderId,
+                                orderCode = orderCode,
+                                totalAmount = totalAmount
+                            }),
+                            ActionType = "url",
+                            ActionTarget = $"/admin/orders/{order.OrderId}"
+                        },
+                        createdByAccountId: 0,
+                        isSystemGenerated: true
+                    );
+                }
+                catch (Exception adminNotifEx)
+                {
+                    _logger.LogError(adminNotifEx, "Failed to send admin alert for new order {OrderId}", order.OrderId);
                 }
 
                 await transaction.CommitAsync();
@@ -583,17 +613,17 @@ namespace BLL.Services
                 order.PaidByWalletAmount = amount;
                 order.PaymentCompletedAt = DateTime.UtcNow;
 
-                // Update status to Processing
-                var processingStatus = await _context.StatusOrders
-                    .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Processing);
+                // Update status to Confirmed
+                var confirmedStatus = await _context.StatusOrders
+                    .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Confirmed);
 
-                if (processingStatus != null)
+                if (confirmedStatus != null)
                 {
-                    order.StatusId = processingStatus.StatusId;
+                    order.StatusId = confirmedStatus.StatusId;
                     _context.OrderStatusHistories.Add(new OrderStatusHistory
                     {
                         OrderId = order.OrderId,
-                        StatusId = processingStatus.StatusId,
+                        StatusId = confirmedStatus.StatusId,
                         ChangedAt = DateTime.UtcNow,
                         Note = "Thanh toán ví thành công",
                         CreatedAt = DateTime.UtcNow
@@ -639,7 +669,7 @@ namespace BLL.Services
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/vnpay-return",
+                            ReturnUrl = $"{baseUrl}/api/COrder/vnpay-return",
                             IpAddress = ipAddress
                         };
                         var vnpayResponse = await _vnPayService.CreatePaymentUrlAsync(vnpayRequest);
@@ -651,7 +681,7 @@ namespace BLL.Services
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/momo-return",
+                            ReturnUrl = $"{baseUrl}/api/COrder/momo-return",
                             NotifyUrl = $"{baseUrl}/api/order/webhook/payment/momo"
                         };
                         var momoResponse = await _moMoService.CreatePaymentAsync(momoRequest);
@@ -663,8 +693,8 @@ namespace BLL.Services
                             OrderId = orderId.ToString(),
                             Amount = amount,
                             OrderInfo = $"Thanh toán đơn hàng #{orderId}",
-                            ReturnUrl = $"{baseUrl}/api/order/sepay-return",
-                            CancelUrl = $"{baseUrl}/api/order/sepay-cancel",
+                            ReturnUrl = $"{baseUrl}/api/COrder/sepay-return",
+                            CancelUrl = $"{baseUrl}/api/COrder/sepay-cancel",
                             NotifyUrl = $"{baseUrl}/api/order/webhook/payment/sepay"
                         };
                         var sepayResponse = await _sepayService.CreatePaymentAsync(sepayRequest);
@@ -818,9 +848,9 @@ namespace BLL.Services
                     };
                 }
 
-                // Can only cancel Pending or Processing orders
+                // Can only cancel Pending or Confirmed orders
                 if (order.Status.StatusName != OrderStatusNames.Pending &&
-                    order.Status.StatusName != OrderStatusNames.Processing)
+                    order.Status.StatusName != OrderStatusNames.Confirmed)
                 {
                     return new ApiResponse<object>
                     {
@@ -905,6 +935,7 @@ namespace BLL.Services
                     .Include(o => o.Status)
                     .Include(o => o.OrderDetails)
                         .ThenInclude(d => d.Product)
+                    .Include(o => o.PaymentHistories)
                     .FirstOrDefaultAsync(o => o.OrderId == orderId && !o.IsDeleted);
 
                 if (order == null)
@@ -948,6 +979,23 @@ namespace BLL.Services
                         await RefundToWalletAsync(order, order.AccountId, order.PaidByWalletAmount, "Hoàn tiền do admin hủy đơn");
                     }
                 }
+                // Confirm COD payment collected when order is marked Delivered
+                else if (newStatus.StatusName == OrderStatusNames.Delivered)
+                {
+                    var codHistory = order.PaymentHistories
+                        .FirstOrDefault(p => p.PaymentMethod == PaymentMethods.COD
+                                          && p.PaymentStatus == PaymentStatus.Pending);
+                    if (codHistory != null)
+                    {
+                        codHistory.PaymentStatus = PaymentStatus.Success;
+                        codHistory.Note = "Đã thu tiền mặt khi giao hàng";
+                    }
+
+                    if (order.PaymentCompletedAt == null)
+                    {
+                        order.PaymentCompletedAt = DateTime.UtcNow;
+                    }
+                }
 
                 // Create status history
                 _context.OrderStatusHistories.Add(new OrderStatusHistory
@@ -968,11 +1016,11 @@ namespace BLL.Services
                 var orderCode = $"ORD{order.OrderId:D6}";
                 await SendOrderStatusNotificationAsync(order, newStatus.StatusName, orderCode);
 
-                // Auto-create GHN shipping order if requested and status is Processing or Confirmed
+                // Auto-create GHN shipping order if requested and status is Confirmed
                 CreateShippingOrderResponse? shippingResponse = null;
                 string? shippingError = null;
                 if (request.AutoCreateShipping &&
-                    (newStatus.StatusName == "Processing" || newStatus.StatusName == "Confirmed"))
+                    newStatus.StatusName == "Confirmed")
                 {
                     _logger.LogInformation($"Auto-creating GHN shipping for order {orderId} (Status: {newStatus.StatusName})");
 
@@ -1265,14 +1313,15 @@ namespace BLL.Services
                 _context.ShippingProviderTransactions.Add(shippingTransaction);
                 await _context.SaveChangesAsync();
 
-                // 10. Update order status to "Processing" or "Shipped"
-                var shippedStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Processing);
+                // 10. Update order status to Shipped (GHN order handed to carrier)
+                var shippedStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Shipped);
                 if (shippedStatus != null)
                 {
+                    bool statusChanged = order.StatusId != shippedStatus.StatusId;
                     order.StatusId = shippedStatus.StatusId;
                     order.UpdatedAt = DateTime.UtcNow;
 
-                    // Add status history
+                    // Add status history entry with GHN tracking code
                     _context.OrderStatusHistories.Add(new OrderStatusHistory
                     {
                         OrderId = order.OrderId,
@@ -1285,9 +1334,13 @@ namespace BLL.Services
 
                     await _context.SaveChangesAsync();
 
-                    // Send notification
-                    var orderCode = $"ORD{order.OrderId:D6}";
-                    await SendOrderStatusNotificationAsync(order, shippedStatus.StatusName, orderCode);
+                    // Skip notification if status was already Shipped (avoids duplicate when auto-create
+                    // fires right after AOrdersController already advanced order to Shipped)
+                    if (statusChanged)
+                    {
+                        var orderCode = $"ORD{order.OrderId:D6}";
+                        await SendOrderStatusNotificationAsync(order, shippedStatus.StatusName, orderCode);
+                    }
                 }
 
                 await transaction.CommitAsync();
@@ -1386,7 +1439,7 @@ namespace BLL.Services
                     case "picking":
                     case "picked":
                         // Order is being prepared for shipping
-                        newStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Processing);
+                        newStatus = await _orderRepo.GetStatusByNameAsync(OrderStatusNames.Confirmed);
                         break;
 
                     case "storing":
@@ -1579,17 +1632,17 @@ namespace BLL.Services
                     var order = gatewayTxn.PaymentHistory.Order;
                     order.PaymentCompletedAt = DateTime.UtcNow;
 
-                    // Update to Processing status
-                    var processingStatus = await _context.StatusOrders
-                        .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Processing);
+                    // Update to Confirmed status
+                    var confirmedStatus = await _context.StatusOrders
+                        .FirstOrDefaultAsync(s => s.StatusName == OrderStatusNames.Confirmed);
 
-                    if (processingStatus != null)
+                    if (confirmedStatus != null)
                     {
-                        order.StatusId = processingStatus.StatusId;
+                        order.StatusId = confirmedStatus.StatusId;
                         _context.OrderStatusHistories.Add(new OrderStatusHistory
                         {
                             OrderId = order.OrderId,
-                            StatusId = processingStatus.StatusId,
+                            StatusId = confirmedStatus.StatusId,
                             ChangedAt = DateTime.UtcNow,
                             Note = $"Thanh toán {provider} thành công",
                             CreatedAt = DateTime.UtcNow
@@ -1833,6 +1886,37 @@ namespace BLL.Services
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                // Alert Admin about new refund request (fire-and-forget)
+                try
+                {
+                    var orderCode = $"ORD{request.OrderId:D6}";
+                    await _notificationService.SendNotificationAsync(
+                        new SendNotificationRequest
+                        {
+                            Title = "Yêu cầu hoàn tiền mới",
+                            Message = $"Có yêu cầu hoàn tiền {refund.RefundAmount:N0} VND cho đơn hàng {orderCode} cần xử lý.",
+                            TargetType = NotificationConstants.TargetTypes.Role,
+                            TargetRoleId = 1, // Admin role
+                            Payload = JsonSerializer.Serialize(new
+                            {
+                                type = "refund_requested",
+                                refundId = refund.RefundId,
+                                orderId = request.OrderId,
+                                orderCode = orderCode,
+                                refundAmount = refund.RefundAmount
+                            }),
+                            ActionType = "url",
+                            ActionTarget = $"/admin/orders/{request.OrderId}"
+                        },
+                        createdByAccountId: 0,
+                        isSystemGenerated: true
+                    );
+                }
+                catch (Exception adminNotifEx)
+                {
+                    _logger.LogError(adminNotifEx, "Failed to send admin refund alert for order {OrderId}", request.OrderId);
+                }
 
                 return new ApiResponse<RefundDto>
                 {
@@ -2471,7 +2555,6 @@ namespace BLL.Services
             {
                 string? templateCode = statusName switch
                 {
-                    OrderStatusNames.Processing => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
                     OrderStatusNames.Confirmed => NotificationConstants.SystemOnlyTemplateCodes.OrderConfirmed,
                     OrderStatusNames.Shipped => NotificationConstants.SystemOnlyTemplateCodes.OrderShipped,
                     OrderStatusNames.Delivered => NotificationConstants.SystemOnlyTemplateCodes.OrderDelivered,
@@ -2517,7 +2600,7 @@ namespace BLL.Services
                     orderId = orderId,
                     orderCode = orderCode,
                     status = statusName.ToLower(),
-                    link = $"/orders/{orderId}"
+                    link = $"/profile?tab=orders&orderId={orderId}"
                 });
 
                 await _notificationService.SendNotificationAsync(
@@ -2562,7 +2645,7 @@ namespace BLL.Services
                     status = isSuccess ? "success" : "failed",
                     paymentMethod = paymentMethod,
                     amount = amount,
-                    link = $"/orders/{orderId}"
+                    link = $"/profile?tab=orders&orderId={orderId}"
                 });
 
                 await _notificationService.SendNotificationAsync(

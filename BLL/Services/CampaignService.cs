@@ -511,12 +511,21 @@ namespace BLL.Services
             };
 
             List<int>? targetUserIds = null;
+            int? targetRoleId = null;
+
             if (notifTargetType == "User")
             {
                 targetUserIds = campaign.CampaignTargets
                     .Where(t => int.TryParse(t.TargetValue, out _))
                     .Select(t => int.Parse(t.TargetValue))
                     .ToList();
+            }
+            else if (notifTargetType == "Role")
+            {
+                // GROUP campaigns store the role ID as the first target value
+                var firstTarget = campaign.CampaignTargets.FirstOrDefault();
+                if (firstTarget != null && int.TryParse(firstTarget.TargetValue, out int roleId))
+                    targetRoleId = roleId;
             }
 
             return new SendNotificationRequest
@@ -529,6 +538,7 @@ namespace BLL.Services
                 ActionTarget = campaign.ActionTarget,
                 TargetType = notifTargetType,
                 TargetUserIds = targetUserIds,
+                TargetRoleId = targetRoleId,
                 CampaignId = campaign.CampaignId
             };
         }
